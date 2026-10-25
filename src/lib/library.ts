@@ -1,18 +1,20 @@
-import type { DocumentRecord, Session } from '../types'
+import type { DocumentRecord, ReadingRecord, Session } from '../types'
 import { readSession, writeLocal } from './storage'
 
 const DATABASE = 'focusread-library'
 const DOCUMENTS = 'documents'
 const DRAFTS = 'drafts'
+const SESSIONS = 'sessions'
 let databasePromise: Promise<IDBDatabase> | null = null
 
 function openDatabase(): Promise<IDBDatabase> {
   if (!databasePromise) databasePromise = new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DATABASE, 1)
+    const request = indexedDB.open(DATABASE, 2)
     request.onupgradeneeded = () => {
       const database = request.result
       if (!database.objectStoreNames.contains(DOCUMENTS)) database.createObjectStore(DOCUMENTS, { keyPath: 'id' })
       if (!database.objectStoreNames.contains(DRAFTS)) database.createObjectStore(DRAFTS, { keyPath: 'id' })
+      if (!database.objectStoreNames.contains(SESSIONS)) database.createObjectStore(SESSIONS, { keyPath: 'id' })
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error ?? new Error('Could not open local library'))
@@ -43,6 +45,18 @@ export const getDocument = (id: string) => transact<DocumentRecord | undefined>(
 export const putDocument = (document: DocumentRecord) => transact<void>(DOCUMENTS, 'readwrite', store => { store.put(document) })
 export const deleteDocument = (id: string) => transact<void>(DOCUMENTS, 'readwrite', store => { store.delete(id) })
 export const putDocuments = (documents: DocumentRecord[]) => transact<void>(DOCUMENTS, 'readwrite', store => { documents.forEach(document => store.put(document)) })
+
+export const listReadings = () => transact<ReadingRecord[]>(SESSIONS, 'readonly', (store, setResult) => {
+  const request = store.getAll()
+  request.onsuccess = () => setResult(request.result as ReadingRecord[])
+})
+export const putReadings = (records: ReadingRecord[]) => transact<void>(SESSIONS, 'readwrite', store => { records.forEach(record => store.put(record)) })
+export const clearReadings = () => transact<void>(SESSIONS, 'readwrite', store => { store.clear() })
+export function isReading(value: unknown): value is ReadingRecord {
+  if (!value || typeof value !== 'object') return false
+  const r = value as Record<string, unknown>
+  return typeof r.id === 'string' && r.id.length > 0 && typeof r.documentId === 'string' && typeof r.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.day) && typeof r.title === 'string' && [r.startedAt, r.words, r.activeMs].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0)
+}
 
 export interface DraftRecord { id: 'current'; title: string; text: string; updatedAt: number }
 export const putDraft = (draft: Omit<DraftRecord, 'id'>) => transact<void>(DRAFTS, 'readwrite', store => { store.put({ ...draft, id: 'current' }) })
