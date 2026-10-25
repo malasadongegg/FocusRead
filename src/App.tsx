@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, Check, ChevronLeft, Clock3, Command, Expand, Focus, Maximize2, Moon, Settings2, Sun } from 'lucide-react'
+import { BarChart3, BookOpen, Check, ChevronLeft, Clock3, Command, Expand, Focus, Maximize2, Moon, Settings2, Sun } from 'lucide-react'
 import TextEditor from './components/TextEditor/TextEditor'
 import Reader from './components/Reader/Reader'
 import WPMControl from './components/WPMControl/WPMControl'
 import PlaybackControls from './components/PlaybackControls/PlaybackControls'
 import ProgressBar from './components/ProgressBar/ProgressBar'
 import Settings from './components/Settings/Settings'
+import Stats from './components/Stats/Stats'
+import { ReadingTracker } from './lib/stats'
 import AmbientAudio from './components/AmbientAudio/AmbientAudio'
 import { AmbientAudioEngine, type AmbientSettings } from './lib/ambientAudio'
 import { PlaybackEngine, type PlaybackState } from './lib/playbackEngine'
@@ -13,9 +15,9 @@ import { tokenize } from './lib/tokenizer'
 import { formatTime, msPerWord, tokenDuration } from './lib/readingTime'
 import { defaults } from './lib/defaults'
 import { readPreferences, readSession, writeLocal } from './lib/storage'
-import { deleteDocument, getDocument, getDraft, listDocuments, migrateLegacyLibrary, putDocument, putDocuments, putDraft } from './lib/library'
-import { createLibraryBackup, mergeDocuments, parseLibraryBackup } from './lib/libraryBackup'
-import type { AudioProfile, DocumentRecord, Mode, Preferences, Session } from './types'
+import { clearReadings, deleteDocument, getDocument, getDraft, listDocuments, listReadings, migrateLegacyLibrary, putDocument, putDocuments, putDraft, putReadings } from './lib/library'
+import { createLibraryBackup, mergeDocuments, parseBackupReadings, parseLibraryBackup } from './lib/libraryBackup'
+import type { AudioProfile, DocumentRecord, Mode, Preferences, ReadingRecord, Session } from './types'
 
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
 
@@ -29,6 +31,8 @@ export default function App() {
   const [text, setText] = useState('')
   const [view, setView] = useState<'editor' | 'reader'>('editor')
   const [showSettings, setShowSettings] = useState(false)
+  const [showStats, setShowStats] = useState(false)
+  const [readings, setReadings] = useState<ReadingRecord[]>([])
   const [showResume, setShowResume] = useState(() => { const session = readSession(); return Boolean(session && !session.complete) })
   const [savedNotice, setSavedNotice] = useState(false)
   const [systemDark, setSystemDark] = useState(() => !matchMedia('(prefers-color-scheme: light)').matches)
@@ -37,7 +41,18 @@ export default function App() {
   const [audioError, setAudioError] = useState<string | null>(null)
   const tokens = useMemo(() => tokenize(text), [text])
   const engineRef = useRef<PlaybackEngine | null>(null)
-  if (!engineRef.current) engineRef.current = new PlaybackEngine(settings, setPlayback)
+  const trackerRef = useRef(new ReadingTracker())
+  const live = useRef({ settings, sessionDocumentId, title })
+  live.current = { settings, sessionDocumentId, title }
+  if (!engineRef.current) engineRef.current = new PlaybackEngine(settings, state => {
+    const { settings: s, sessionDocumentId: id, title: name } = live.current
+    trackerRef.current.feed(state, s.mode === 'chunk' ? s.chunkSize : 1)
+    setPlayback(state)
+    if (!state.playing) {
+      const record = trackerRef.current.take(id, name.trim() || 'Untitled document')
+      if (record) { setReadings(previous => [...previous, record]); void putReadings([record]).catch(() => setLibraryStatus('Reading history could not be saved on this device.')) }
+    }
+  })
   const engine = engineRef.current
   const patchSettings = useCallback((patch: Partial<Preferences>) => setSettings(previous => ({ ...previous, ...patch })), [])
   const audioRef = useRef<AmbientAudioEngine | null>(null)
@@ -52,6 +67,7 @@ export default function App() {
   useEffect(() => { window.scrollTo(0, 0) }, [view])
   useEffect(() => {
     let cancelled = false
+    void listReadings().then(items => { if (!cancelled) setReadings(items) }).catch(() => {})
     void migrateLegacyLibrary().then(listDocuments).then(items => { if (!cancelled) setDocuments(items) }).catch(() => { if (!cancelled) setLibraryStatus('Local library is unavailable in this browser.') })
     return () => { cancelled = true }
   }, [])
@@ -104,7 +120,7 @@ export default function App() {
   }
   const exportLibrary = async () => {
     try {
-      const source = createLibraryBackup(await listDocuments())
+      const source = createLibraryBackup(await listDocuments(), await listReadings())
       const url = URL.createObjectURL(new Blob([source], { type: 'application/json' }))
       const link = document.createElement('a')
       link.href = url; link.download = `focusread-library-${new Date().toISOString().slice(0, 10)}.json`
@@ -118,7 +134,10 @@ export default function App() {
       if (file.size > 100 * 1024 * 1024) throw new Error('The backup is too large to import.')
       const imported = parseLibraryBackup(await file.text())
       const merged = mergeDocuments(await listDocuments(), imported)
+      const text = await file.text()
+      const importedReadings = parseBackupReadings(text)
       await putDocuments(merged)
+      if (importedReadings.length) { await putReadings(importedReadings); setReadings(await listReadings()) }
       setDocuments(merged); setLibraryStatus(`Imported ${imported.length} document${imported.length === 1 ? '' : 's'}.`)
     } catch (error) { setLibraryStatus(error instanceof Error ? error.message : 'Could not import the backup.') }
   }
@@ -168,9 +187,9 @@ export default function App() {
   const effectiveWpm = estimated ? Math.round(tokens.length / (estimated / 60000)) : settings.wpm
   const modes: { id: Mode; label: string }[] = [{ id: 'rsvp', label: 'RSVP' }, { id: 'chunk', label: 'Chunk' }, { id: 'traditional', label: 'Traditional' }]
   return <div className={`app-shell ${dark ? 'theme-dark' : 'theme-light'} ${settings.reducedMotion ? 'reduce-motion' : ''}`} style={{ '--accent': settings.accentColor, '--reader-bg': settings.backgroundColor } as React.CSSProperties}>
-    <header className="site-header"><button className="brand" onClick={() => { engine.pause(); setView('editor') }} aria-label="FocusRead home"><span className="brand-icon"><Focus size={22} strokeWidth={2.5}/></span><span>Focus<span>Read</span><small>™</small></span></button><div className="header-right"><span className="privacy-note"><span/> 100% PRIVATE · STORED ON THIS DEVICE</span>{view === 'reader' && <button className="header-action" onClick={toggleFullscreen} aria-label="Toggle fullscreen"><Maximize2 size={17}/></button>}<button className="header-action" aria-label="Open settings" onClick={() => setShowSettings(true)}><Settings2 size={18}/></button><span className="avatar">FR</span></div></header>
+    <header className="site-header"><button className="brand" onClick={() => { engine.pause(); setView('editor') }} aria-label="FocusRead home"><span className="brand-icon"><Focus size={22} strokeWidth={2.5}/></span><span>Focus<span>Read</span><small>™</small></span></button><div className="header-right"><span className="privacy-note"><span/> 100% PRIVATE · STORED ON THIS DEVICE</span>{view === 'reader' && <button className="header-action" onClick={toggleFullscreen} aria-label="Toggle fullscreen"><Maximize2 size={17}/></button>}<button className="header-action" aria-label="Open statistics" onClick={() => setShowStats(true)}><BarChart3 size={18}/></button><button className="header-action" aria-label="Open settings" onClick={() => setShowSettings(true)}><Settings2 size={18}/></button><span className="avatar">FR</span></div></header>
     {view === 'editor' ? <main className="home-main"><div className="hero-intro"><div className="hero-kicker"><span className="sparkle">✦</span> A BETTER WAY TO READ</div><h1>Read at the speed<br/>of <em>thought.</em></h1><p>A quieter space for deeper focus. Your words, your pace, your flow.</p></div>{showResume && <div className="resume-banner"><div><BookOpen size={18}/><span>You have a reading session in progress.</span></div><button onClick={resumeSession}>Resume session <ChevronLeft size={16}/></button><button className="dismiss" aria-label="Dismiss resume prompt" onClick={() => setShowResume(false)}>×</button></div>}<TextEditor title={title} text={text} documents={documents} wordCount={tokens.length} duration={estimated} libraryStatus={libraryStatus} onTitle={setTitle} onText={setText} onSave={() => { void saveDocument() }} onOpen={openDocument} onDelete={id => { void removeDocument(id) }} onStart={() => { void startReading() }} onExport={() => { void exportLibrary() }} onImportBackup={file => { void importBackup(file) }}/><div className="home-bottom"><div className="speed-card"><div className="card-heading"><Clock3 size={17}/><span>SET YOUR PACE</span></div><WPMControl value={settings.wpm} fine={settings.fineSpeed} onChange={setWpm}/></div><div className="tip-card"><span className="tip-symbol">✳</span><div><strong>A little focus goes a long way.</strong><p>Start at 300 WPM and adjust as you find your natural rhythm. You can change speed at any time.</p></div></div></div></main> : <main className="reading-main"><div className="reading-top"><button className="back-button" onClick={() => { engine.pause(); setView('editor') }}><ChevronLeft size={18}/> Back to editor</button><div className="reading-title"><span className="live-dot"/>{title || 'Untitled document'}</div><button className="reader-fullscreen" onClick={toggleFullscreen}><Expand size={17}/> Fullscreen</button></div><div className="reader-frame" style={{ backgroundColor: settings.backgroundColor }}><div className="mode-tabs" role="tablist" aria-label="Reading mode">{modes.map(mode => <button key={mode.id} role="tab" aria-selected={settings.mode === mode.id} className={settings.mode === mode.id ? 'selected' : ''} onClick={() => patchSettings({ mode: mode.id })}>{mode.label}</button>)}</div>{settings.mode === 'chunk' && <div className="chunk-size">Words per chunk <select aria-label="Words per chunk" value={settings.chunkSize} onChange={e => patchSettings({ chunkSize: +e.target.value })}>{[2,3,4,5].map(n => <option key={n}>{n}</option>)}</select></div>}<Reader tokens={tokens} index={playback.index} mode={settings.mode} settings={settings}/><div className="reader-frame-bottom"><span><span className="red-dot"/> {playback.complete ? 'SESSION COMPLETE' : playback.playing ? 'READING IN PROGRESS' : 'READY WHEN YOU ARE'}</span><span>FOCUS MODE <Command size={13}/></span></div></div><div className="control-panel"><ProgressBar index={playback.index} total={tokens.length} onSeek={index => engine.seek(index)}/><div className="controls-row"><div className="time-stat"><small>TIME REMAINING</small><strong>{formatTime(remaining)}</strong></div><PlaybackControls playing={playback.playing} onPlay={() => playback.playing ? engine.pause() : engine.play()} onPrevious={() => engine.skip(-1)} onNext={() => engine.skip(1)} onRestart={() => engine.restart()}/><div className="time-stat right"><small>TIME ELAPSED</small><strong>{formatTime(playback.elapsedMs)}</strong></div></div><div className="reader-speed"><WPMControl compact value={settings.wpm} fine={settings.fineSpeed} onChange={setWpm}/><div className="speed-detail"><span>{Math.round(60000 / settings.wpm)} ms / word</span>{settings.punctuation && <span>~{effectiveWpm} effective WPM</span>}<span>{Math.max(0,tokens.length - playback.index - 1).toLocaleString()} words left</span></div><AmbientAudio settings={audioSettings} readingPlaying={playback.playing} active={audioReady} error={audioError} onToggle={() => { void toggleAudio() }} onProfile={chooseAudioProfile} onChange={patch => patchSettings({ audioVolume: patch.volume ?? settings.audioVolume, audioPauseWithReading: patch.pauseWithReading ?? settings.audioPauseWithReading, audioTimerMinutes: patch.timerMinutes ?? settings.audioTimerMinutes })}/></div></div><div className="shortcut-hint"><kbd>Space</kbd> Play / Pause <kbd>←</kbd><kbd>→</kbd> Skip word <kbd>↑</kbd><kbd>↓</kbd> Adjust speed <kbd>R</kbd> Restart <kbd>F</kbd> Fullscreen</div></main>}
     <footer className="site-footer"><span>© 2026 FocusRead. Made for the moments that matter.</span><span>{dark ? <Moon size={13}/> : <Sun size={13}/>} {dark ? 'Dark' : 'Light'} mode <span className="footer-divider">·</span> No accounts. No distractions.</span></footer>
-    {savedNotice && <div className="toast"><Check size={17}/> Saved on this device</div>}{showSettings && <Settings settings={settings} onChange={patchSettings} onClose={() => setShowSettings(false)}/ >}
+    {savedNotice && <div className="toast"><Check size={17}/> Saved on this device</div>}{showStats && <Stats records={readings} goal={settings.dailyGoalWords} onGoal={dailyGoalWords => patchSettings({ dailyGoalWords })} onClear={() => { void clearReadings().then(() => setReadings([])).catch(() => setLibraryStatus('Could not clear reading history.')) }} onClose={() => setShowStats(false)}/>}{showSettings && <Settings settings={settings} onChange={patchSettings} onClose={() => setShowSettings(false)}/ >}
   </div>
 }
