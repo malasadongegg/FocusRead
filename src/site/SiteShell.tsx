@@ -1,5 +1,5 @@
 import { ArrowUpRight, Menu, X } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { SiteLink } from './navigation'
 
 const menu = [
@@ -10,6 +10,12 @@ const menu = [
 
 export default function SiteShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [open])
   return <div className="product-site">
     <header className="product-header"><div className="product-nav">
       <SiteLink to="/" className="product-brand" aria-label="FocusRead home"><span className="product-brand-mark" aria-hidden="true">F<span>·</span></span><span>Focus<span>Read</span></span></SiteLink>

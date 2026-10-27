@@ -134,3 +134,16 @@ test('website navigation reaches sections without browser errors', async ({ page
   await expect(page.getByRole('heading', { name: /Everything you need/ })).toBeVisible()
   expect(errors).toEqual([])
 })
+
+test('reading showcase and mobile menu work from the keyboard', async ({ page }) => {
+  await page.goto('/')
+  const rsvp = page.getByRole('tab', { name: /RSVP/ })
+  await rsvp.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.getByRole('tab', { name: /Chunks/ })).toHaveAttribute('aria-selected', 'true')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Open menu' }).click()
+  await expect(page.getByRole('button', { name: 'Close menu' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: 'Open menu' })).toBeVisible()
+})
