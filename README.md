@@ -2,6 +2,12 @@
 
 Private, installable RSVP speed reading with a fixed focal letter, chunk and traditional modes, and deadline-based playback. The same static build runs locally or on Vercel.
 
+## Website pages
+
+The product homepage lives at `/` and includes an interactive RSVP demonstration. `/app` is the reading workspace. `/features` explains the reading modes and controls; `/progress` shows only history saved on the current device; `/privacy` describes local storage and backups; `/docs` contains the in-app user and deployment guide. The static Vite build and `vercel.json` serve these paths through one offline-capable app shell.
+
+The website links to the reader without creating an account or sending pasted text to a server. Product-page examples use bundled sample copy and never enter the user's library.
+
 ## Run locally
 
 ```bash
