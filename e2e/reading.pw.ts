@@ -30,3 +30,18 @@ test('loads the installed app shell without a network connection', async ({ page
   await expect(page.getByRole('heading', { name: /Read at the speed/ })).toBeVisible()
   await context.setOffline(false)
 })
+
+test('keeps the focal anchor fixed for long words on a narrow screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await page.getByLabel('Reading text').fill('read extraordinarilylongunbrokenword')
+  await page.getByRole('button', { name: 'Start reading' }).click()
+  const focal = page.locator('.focus-letter')
+  const first = await focal.boundingBox()
+  await page.getByRole('button', { name: 'Next word' }).click()
+  const second = await focal.boundingBox()
+  expect(first).not.toBeNull()
+  expect(second).not.toBeNull()
+  expect(Math.abs(first!.x + first!.width / 2 - second!.x - second!.width / 2)).toBeLessThan(1)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+})
