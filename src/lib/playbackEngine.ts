@@ -83,7 +83,19 @@ export class PlaybackEngine {
     this.emit()
   }
   skip(direction: number) { this.seek(this.state.index + direction * this.stepSize()) }
-  restart() { this.seek(0); this.state.elapsedMs = 0; this.startedAt = this.clock.now(); this.emit() }
+  restart() {
+    if (!this.tokens.length) return
+    this.state.index = 0
+    this.state.complete = false
+    this.state.elapsedMs = 0
+    this.remaining = this.durationAt(0)
+    if (this.state.playing) {
+      this.startedAt = this.clock.now()
+      this.deadline = this.startedAt + this.remaining
+      this.schedule()
+    }
+    this.emit()
+  }
   update(settings: Preferences) {
     const oldDuration = this.durationAt(this.state.index)
     const fraction = this.state.playing ? Math.max(0, this.deadline - this.clock.now()) / Math.max(1, oldDuration) : this.remaining / Math.max(1, oldDuration)

@@ -70,6 +70,19 @@ describe('deadline playback', () => {
     expect(engine.snapshot()).toMatchObject({ index: 2, playing: false, complete: true })
     engine.restart(); expect(engine.snapshot()).toMatchObject({ index: 0, complete: false }); engine.destroy()
   })
+  it('restarts during playback with one update and a fresh deadline', () => {
+    const { engine, listener } = make('one two three')
+    engine.play(); vi.advanceTimersByTime(250)
+    const updates = listener.mock.calls.length
+    engine.restart()
+    expect(listener).toHaveBeenCalledTimes(updates + 1)
+    expect(engine.snapshot().index).toBe(0)
+    vi.advanceTimersByTime(199)
+    expect(engine.snapshot().index).toBe(0)
+    vi.advanceTimersByTime(1)
+    expect(engine.snapshot().index).toBe(1)
+    engine.destroy()
+  })
   it('uses total words per minute for chunks', () => {
     const { engine } = make('one two three four five', { mode: 'chunk', chunkSize: 2 })
     engine.play(); vi.advanceTimersByTime(201); expect(engine.snapshot().index).toBe(0)
