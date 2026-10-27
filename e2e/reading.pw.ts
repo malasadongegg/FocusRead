@@ -45,3 +45,16 @@ test('keeps the focal anchor fixed for long words on a narrow screen', async ({ 
   expect(Math.abs(first!.x + first!.width / 2 - second!.x - second!.width / 2)).toBeLessThan(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
 })
+
+test('serves the app shell for a direct navigation and keeps assets local', async ({ page }) => {
+  const external: string[] = []
+  page.on('request', request => { if (!new URL(request.url()).hostname.match(/^(localhost|127\.0\.0\.1)$/)) external.push(request.url()) })
+  await page.goto('/reader')
+  await expect(page.getByRole('heading', { name: /Read at the speed/ })).toBeVisible()
+  expect(external).toEqual([])
+  const assets = await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.ready
+    return { manifest: Boolean(document.querySelector('link[rel="manifest"]')), worker: Boolean(registration.active) }
+  })
+  expect(assets).toEqual({ manifest: true, worker: true })
+})
