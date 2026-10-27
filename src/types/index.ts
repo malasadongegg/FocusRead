@@ -2,6 +2,7 @@ export type Mode = 'rsvp' | 'chunk' | 'traditional'
 export type Theme = 'dark' | 'light' | 'system'
 export type AudioProfile = 'silence' | 'white' | 'pink' | 'brown' | 'rain'
 export type PaceMode = 'fixed' | 'ramp' | 'adaptive'
+export interface PracticeGoal { wpm: number; minutes: number }
 export interface Token { text: string; start: number; end: number; paragraphBefore: boolean }
 export interface Preferences {
   wpm: number; fineSpeed: boolean; mode: Mode; chunkSize: number; theme: Theme; paceMode: PaceMode; rampUpWords: number;

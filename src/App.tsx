@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, BookOpen, Check, ChevronLeft, Clock3, Command, Expand, Focus, Maximize2, Moon, Settings2, Sun } from 'lucide-react'
+import { BarChart3, BookOpen, Check, ChevronLeft, Clock3, Command, Expand, Focus, Maximize2, Moon, Settings2, Sun, Target } from 'lucide-react'
 import TextEditor from './components/TextEditor/TextEditor'
 import Reader from './components/Reader/Reader'
 import WPMControl from './components/WPMControl/WPMControl'
@@ -7,6 +7,7 @@ import PlaybackControls from './components/PlaybackControls/PlaybackControls'
 import ProgressBar from './components/ProgressBar/ProgressBar'
 import Settings from './components/Settings/Settings'
 import Stats from './components/Stats/Stats'
+import Practice from './components/Practice/Practice'
 import { usePlaybackCountdown } from './hooks/usePlaybackCountdown'
 import { shouldHandleReaderShortcut } from './lib/shortcuts'
 import { ReadingTracker } from './lib/stats'
@@ -19,7 +20,7 @@ import { defaults } from './lib/defaults'
 import { readPreferences, readSession, writeLocal } from './lib/storage'
 import { clearReadings, deleteDocument, getDocument, getDraft, listDocuments, listReadings, migrateLegacyLibrary, putDocument, putDocuments, putDraft, putReadings } from './lib/library'
 import { createLibraryBackup, mergeDocuments, parseBackupReadings, parseLibraryBackup } from './lib/libraryBackup'
-import type { AudioProfile, DocumentRecord, Mode, Preferences, ReadingRecord, Session } from './types'
+import type { AudioProfile, DocumentRecord, Mode, PracticeGoal, Preferences, ReadingRecord, Session } from './types'
 
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
 
@@ -34,6 +35,9 @@ export default function App() {
   const [view, setView] = useState<'editor' | 'reader'>('editor')
   const [showSettings, setShowSettings] = useState(false)
   const [showStats, setShowStats] = useState(false)
+  const [showPractice, setShowPractice] = useState(false)
+  const [practice, setPractice] = useState<PracticeGoal | null>(null)
+  const [practiceFinished, setPracticeFinished] = useState<string | null>(null)
   const [focusMode, setFocusMode] = useState(false)
   const [readings, setReadings] = useState<ReadingRecord[]>([])
   const [showResume, setShowResume] = useState(() => { const session = readSession(); return Boolean(session && !session.complete) })
@@ -84,6 +88,17 @@ export default function App() {
   useEffect(() => { const query = matchMedia('(prefers-color-scheme: light)'); const change = () => setSystemDark(!query.matches); query.addEventListener('change', change); return () => query.removeEventListener('change', change) }, [])
   useEffect(() => { const onVisibility = () => { if (document.hidden) { engine.pause(); countdown.cancel() } }; document.addEventListener('visibilitychange', onVisibility); return () => document.removeEventListener('visibilitychange', onVisibility) }, [engine, countdown.cancel])
   useEffect(() => { if (view !== 'reader') countdown.cancel() }, [view, countdown.cancel])
+  useEffect(() => {
+    if (practice && playback.playing && playback.elapsedMs >= practice.minutes * 60000) {
+      engine.pause()
+      setPractice(null)
+      setPracticeFinished('Practice time complete.')
+    }
+    if (practice && playback.complete) {
+      setPractice(null)
+      setPracticeFinished('Practice text complete.')
+    }
+  }, [practice, playback.playing, playback.elapsedMs, playback.complete, engine])
   useEffect(() => () => engine.destroy(), [engine])
 
   const saveDocument = useCallback(async () => {
@@ -99,6 +114,7 @@ export default function App() {
   }, [documentId, text, title])
   const startReading = async () => {
     if (!tokens.length) return
+    setPractice(null); setPracticeFinished(null)
     const stored = documents.find(item => item.id === documentId)
     const useSaved = stored?.text === text && stored.title === (title.trim() || 'Untitled document')
     if (useSaved && stored) setSessionDocumentId(stored.id)
@@ -109,6 +125,12 @@ export default function App() {
     engine.load(tokens)
     setView('reader'); setShowResume(false)
     if (settings.fullscreenPreference) void document.documentElement.requestFullscreen?.().catch(() => {})
+  }
+  const startPractice = async (goal: PracticeGoal) => {
+    setSettings(previous => ({ ...previous, wpm: goal.wpm, paceMode: 'ramp', rampUpWords: 100 }))
+    setShowPractice(false)
+    await startReading()
+    setPractice(goal)
   }
   const openDocument = (doc: DocumentRecord) => { engine.pause(); setDocumentId(doc.id); setTitle(doc.title); setText(doc.text); setView('editor') }
   const resumeSession = async () => {
@@ -171,7 +193,7 @@ export default function App() {
   const setWpm = (wpm: number) => patchSettings({ wpm })
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (view !== 'reader' || !shouldHandleReaderShortcut(event, showSettings || showStats)) return
+      if (view !== 'reader' || !shouldHandleReaderShortcut(event, showSettings || showStats || showPractice)) return
       const key = event.key.toLowerCase()
       if ([' ', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'r', 'f', 'd'].includes(key)) event.preventDefault()
       if (event.repeat && [' ', 'r', 'f', 'd'].includes(key)) return
@@ -186,7 +208,7 @@ export default function App() {
       if (key === 'escape' && document.fullscreenElement) void document.exitFullscreen()
     }
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
-  }, [view, playback.playing, engine, settings.wpm, settings.fineSpeed, countdown.remaining, showSettings, showStats])
+  }, [view, playback.playing, engine, settings.wpm, settings.fineSpeed, countdown.remaining, showSettings, showStats, showPractice])
 
   const durationSuffix = useMemo(() => {
     if (!settings.punctuation && settings.paceMode === 'fixed') return null
@@ -199,9 +221,9 @@ export default function App() {
   const effectiveWpm = estimated ? Math.round(tokens.length / (estimated / 60000)) : settings.wpm
   const modes: { id: Mode; label: string }[] = [{ id: 'rsvp', label: 'RSVP' }, { id: 'chunk', label: 'Chunk' }, { id: 'traditional', label: 'Traditional' }]
   return <div className={`app-shell ${dark ? 'theme-dark' : 'theme-light'} ${settings.reducedMotion ? 'reduce-motion' : ''} ${view === 'reader' && focusMode ? 'focus-mode' : ''}`} style={{ '--accent': settings.accentColor, '--reader-bg': settings.backgroundColor } as React.CSSProperties}>
-    <header className="site-header"><button className="brand" onClick={() => { engine.pause(); setView('editor') }} aria-label="FocusRead home"><span className="brand-icon"><Focus size={22} strokeWidth={2.5}/></span><span>Focus<span>Read</span><small>™</small></span></button><div className="header-right"><span className="privacy-note"><span/> 100% PRIVATE · STORED ON THIS DEVICE</span>{view === 'reader' && <button className="header-action" onClick={toggleFullscreen} aria-label="Toggle fullscreen"><Maximize2 size={17}/></button>}<button className="header-action" aria-label="Open statistics" onClick={() => setShowStats(true)}><BarChart3 size={18}/></button><button className="header-action" aria-label="Open settings" onClick={() => setShowSettings(true)}><Settings2 size={18}/></button><span className="avatar">FR</span></div></header>
-    {view === 'editor' ? <main className="home-main"><div className="hero-intro"><div className="hero-kicker"><span className="sparkle">✦</span> A BETTER WAY TO READ</div><h1>Read at the speed<br/>of <em>thought.</em></h1><p>A quieter space for deeper focus. Your words, your pace, your flow.</p></div>{showResume && <div className="resume-banner"><div><BookOpen size={18}/><span>You have a reading session in progress.</span></div><button onClick={resumeSession}>Resume session <ChevronLeft size={16}/></button><button className="dismiss" aria-label="Dismiss resume prompt" onClick={() => setShowResume(false)}>×</button></div>}<TextEditor title={title} text={text} documents={documents} wordCount={tokens.length} duration={estimated} libraryStatus={libraryStatus} onTitle={setTitle} onText={setText} onSave={() => { void saveDocument() }} onOpen={openDocument} onDelete={id => { void removeDocument(id) }} onStart={() => { void startReading() }} onExport={() => { void exportLibrary() }} onImportBackup={file => { void importBackup(file) }}/><div className="home-bottom"><div className="speed-card"><div className="card-heading"><Clock3 size={17}/><span>SET YOUR PACE</span></div><WPMControl value={settings.wpm} fine={settings.fineSpeed} onChange={setWpm}/></div><div className="tip-card"><span className="tip-symbol">✳</span><div><strong>A little focus goes a long way.</strong><p>Start at 300 WPM and adjust as you find your natural rhythm. You can change speed at any time.</p></div></div></div></main> : <main className="reading-main"><div className="reading-top"><button className="back-button" onClick={() => { engine.pause(); setView('editor') }}><ChevronLeft size={18}/> Back to editor</button><div className="reading-title"><span className="live-dot"/>{title || 'Untitled document'}</div><button className="reader-fullscreen" onClick={() => setFocusMode(value => !value)}><Focus size={17}/> {focusMode ? "Exit focus" : "Focus mode"}</button><button className="reader-fullscreen" onClick={toggleFullscreen}><Expand size={17}/> Fullscreen</button></div><div className="reader-frame" style={{ backgroundColor: settings.backgroundColor }}>{focusMode && <button className="focus-exit" onClick={() => setFocusMode(false)}>Exit focus mode <span aria-hidden="true">D</span></button>}<div className="mode-tabs" role="tablist" aria-label="Reading mode">{modes.map(mode => <button key={mode.id} role="tab" aria-selected={settings.mode === mode.id} className={settings.mode === mode.id ? 'selected' : ''} onClick={() => patchSettings({ mode: mode.id })}>{mode.label}</button>)}</div>{settings.mode === 'chunk' && <div className="chunk-size">Words per chunk <select aria-label="Words per chunk" value={settings.chunkSize} onChange={e => patchSettings({ chunkSize: +e.target.value })}>{[2,3,4,5].map(n => <option key={n}>{n}</option>)}</select></div>}{countdown.remaining !== null && <div className="countdown-overlay" role="status" aria-live="assertive"><strong>{countdown.remaining}</strong><span>Get ready to read</span></div>}<Reader tokens={tokens} index={playback.index} mode={settings.mode} settings={settings}/><div className="reader-frame-bottom"><span><span className="red-dot"/> {playback.complete ? 'SESSION COMPLETE' : playback.playing ? 'READING IN PROGRESS' : 'READY WHEN YOU ARE'}</span><span>FOCUS MODE <Command size={13}/></span></div></div><div className="control-panel"><ProgressBar index={playback.index} total={tokens.length} onSeek={index => { countdown.cancel(); engine.seek(index) }}/><div className="controls-row"><div className="time-stat"><small>TIME REMAINING</small><strong>{formatTime(remaining)}</strong></div><PlaybackControls playing={playback.playing || countdown.remaining !== null} onPlay={togglePlayback} onPrevious={() => engine.skip(-1)} onNext={() => engine.skip(1)} onRestart={() => engine.restart()}/><div className="time-stat right"><small>TIME ELAPSED</small><strong>{formatTime(playback.elapsedMs)}</strong></div></div><div className="reader-speed"><WPMControl compact value={settings.wpm} fine={settings.fineSpeed} onChange={setWpm}/><div className="speed-detail"><span>{Math.round(60000 / settings.wpm)} ms / word</span>{(settings.punctuation || settings.paceMode !== 'fixed') && <span>~{effectiveWpm} effective WPM ? {settings.paceMode} pace</span>}<span>{Math.max(0,tokens.length - playback.index - 1).toLocaleString()} words left</span></div><AmbientAudio settings={audioSettings} readingPlaying={playback.playing} active={audioReady} error={audioError} onToggle={() => { void toggleAudio() }} onProfile={chooseAudioProfile} onChange={patch => patchSettings({ audioVolume: patch.volume ?? settings.audioVolume, audioPauseWithReading: patch.pauseWithReading ?? settings.audioPauseWithReading, audioTimerMinutes: patch.timerMinutes ?? settings.audioTimerMinutes })}/></div></div><div className="shortcut-hint"><kbd>Space</kbd> Play / Pause <kbd>←</kbd><kbd>→</kbd> Skip word <kbd>↑</kbd><kbd>↓</kbd> Adjust speed <kbd>R</kbd> Restart <kbd>F</kbd> Fullscreen <kbd>D</kbd> Focus mode</div></main>}
+    <header className="site-header"><button className="brand" onClick={() => { engine.pause(); setView('editor') }} aria-label="FocusRead home"><span className="brand-icon"><Focus size={22} strokeWidth={2.5}/></span><span>Focus<span>Read</span><small>™</small></span></button><div className="header-right"><span className="privacy-note"><span/> 100% PRIVATE · STORED ON THIS DEVICE</span>{view === 'reader' && <button className="header-action" onClick={toggleFullscreen} aria-label="Toggle fullscreen"><Maximize2 size={17}/></button>}<button className="header-action" aria-label="Open guided practice" onClick={() => setShowPractice(true)}><Target size={18}/></button><button className="header-action" aria-label="Open statistics" onClick={() => setShowStats(true)}><BarChart3 size={18}/></button><button className="header-action" aria-label="Open settings" onClick={() => setShowSettings(true)}><Settings2 size={18}/></button><span className="avatar">FR</span></div></header>
+    {view === 'editor' ? <main className="home-main"><div className="hero-intro"><div className="hero-kicker"><span className="sparkle">✦</span> A BETTER WAY TO READ</div><h1>Read at the speed<br/>of <em>thought.</em></h1><p>A quieter space for deeper focus. Your words, your pace, your flow.</p></div>{showResume && <div className="resume-banner"><div><BookOpen size={18}/><span>You have a reading session in progress.</span></div><button onClick={resumeSession}>Resume session <ChevronLeft size={16}/></button><button className="dismiss" aria-label="Dismiss resume prompt" onClick={() => setShowResume(false)}>×</button></div>}<TextEditor title={title} text={text} documents={documents} wordCount={tokens.length} duration={estimated} libraryStatus={libraryStatus} onTitle={setTitle} onText={setText} onSave={() => { void saveDocument() }} onOpen={openDocument} onDelete={id => { void removeDocument(id) }} onStart={() => { void startReading() }} onExport={() => { void exportLibrary() }} onImportBackup={file => { void importBackup(file) }}/><div className="home-bottom"><div className="speed-card"><div className="card-heading"><Clock3 size={17}/><span>SET YOUR PACE</span></div><WPMControl value={settings.wpm} fine={settings.fineSpeed} onChange={setWpm}/></div><div className="tip-card"><span className="tip-symbol">✳</span><div><strong>A little focus goes a long way.</strong><p>Start at 300 WPM and adjust as you find your natural rhythm. You can change speed at any time.</p></div></div></div></main> : <main className="reading-main"><div className="reading-top"><button className="back-button" onClick={() => { engine.pause(); setView('editor') }}><ChevronLeft size={18}/> Back to editor</button><div className="reading-title"><span className="live-dot"/>{title || 'Untitled document'}</div><button className="reader-fullscreen" onClick={() => setFocusMode(value => !value)}><Focus size={17}/> {focusMode ? "Exit focus" : "Focus mode"}</button><button className="reader-fullscreen" onClick={toggleFullscreen}><Expand size={17}/> Fullscreen</button></div>{(practice || practiceFinished) && <div className="practice-banner" role="status">{practice ? `Practice: ${practice.wpm} WPM target | ${formatTime(Math.max(0, practice.minutes * 60000 - playback.elapsedMs))} left` : practiceFinished}</div>}<div className="reader-frame" style={{ backgroundColor: settings.backgroundColor }}>{focusMode && <button className="focus-exit" onClick={() => setFocusMode(false)}>Exit focus mode <span aria-hidden="true">D</span></button>}<div className="mode-tabs" role="tablist" aria-label="Reading mode">{modes.map(mode => <button key={mode.id} role="tab" aria-selected={settings.mode === mode.id} className={settings.mode === mode.id ? 'selected' : ''} onClick={() => patchSettings({ mode: mode.id })}>{mode.label}</button>)}</div>{settings.mode === 'chunk' && <div className="chunk-size">Words per chunk <select aria-label="Words per chunk" value={settings.chunkSize} onChange={e => patchSettings({ chunkSize: +e.target.value })}>{[2,3,4,5].map(n => <option key={n}>{n}</option>)}</select></div>}{countdown.remaining !== null && <div className="countdown-overlay" role="status" aria-live="assertive"><strong>{countdown.remaining}</strong><span>Get ready to read</span></div>}<Reader tokens={tokens} index={playback.index} mode={settings.mode} settings={settings}/><div className="reader-frame-bottom"><span><span className="red-dot"/> {playback.complete ? 'SESSION COMPLETE' : playback.playing ? 'READING IN PROGRESS' : 'READY WHEN YOU ARE'}</span><span>FOCUS MODE <Command size={13}/></span></div></div><div className="control-panel"><ProgressBar index={playback.index} total={tokens.length} onSeek={index => { countdown.cancel(); engine.seek(index) }}/><div className="controls-row"><div className="time-stat"><small>TIME REMAINING</small><strong>{formatTime(remaining)}</strong></div><PlaybackControls playing={playback.playing || countdown.remaining !== null} onPlay={togglePlayback} onPrevious={() => engine.skip(-1)} onNext={() => engine.skip(1)} onRestart={() => engine.restart()}/><div className="time-stat right"><small>TIME ELAPSED</small><strong>{formatTime(playback.elapsedMs)}</strong></div></div><div className="reader-speed"><WPMControl compact value={settings.wpm} fine={settings.fineSpeed} onChange={setWpm}/><div className="speed-detail"><span>{Math.round(60000 / settings.wpm)} ms / word</span>{(settings.punctuation || settings.paceMode !== 'fixed') && <span>~{effectiveWpm} effective WPM, {settings.paceMode} pace</span>}<span>{Math.max(0,tokens.length - playback.index - 1).toLocaleString()} words left</span></div><AmbientAudio settings={audioSettings} readingPlaying={playback.playing} active={audioReady} error={audioError} onToggle={() => { void toggleAudio() }} onProfile={chooseAudioProfile} onChange={patch => patchSettings({ audioVolume: patch.volume ?? settings.audioVolume, audioPauseWithReading: patch.pauseWithReading ?? settings.audioPauseWithReading, audioTimerMinutes: patch.timerMinutes ?? settings.audioTimerMinutes })}/></div></div><div className="shortcut-hint"><kbd>Space</kbd> Play / Pause <kbd>←</kbd><kbd>→</kbd> Skip word <kbd>↑</kbd><kbd>↓</kbd> Adjust speed <kbd>R</kbd> Restart <kbd>F</kbd> Fullscreen <kbd>D</kbd> Focus mode</div></main>}
     <footer className="site-footer"><span>© 2026 FocusRead. Made for the moments that matter.</span><span>{dark ? <Moon size={13}/> : <Sun size={13}/>} {dark ? 'Dark' : 'Light'} mode <span className="footer-divider">·</span> No accounts. No distractions.</span></footer>
-    {savedNotice && <div className="toast"><Check size={17}/> Saved on this device</div>}{showStats && <Stats records={readings} goal={settings.dailyGoalWords} onGoal={dailyGoalWords => patchSettings({ dailyGoalWords })} onClear={() => { void clearReadings().then(() => setReadings([])).catch(() => setLibraryStatus('Could not clear reading history.')) }} onClose={() => setShowStats(false)}/>}{showSettings && <Settings settings={settings} onChange={patchSettings} onClose={() => setShowSettings(false)}/ >}
+    {savedNotice && <div className="toast"><Check size={17}/> Saved on this device</div>}{showPractice && <Practice wordCount={tokens.length} onStart={goal => { void startPractice(goal) }} onClose={() => setShowPractice(false)}/ >}{showStats && <Stats records={readings} goal={settings.dailyGoalWords} onGoal={dailyGoalWords => patchSettings({ dailyGoalWords })} onClear={() => { void clearReadings().then(() => setReadings([])).catch(() => setLibraryStatus('Could not clear reading history.')) }} onClose={() => setShowStats(false)}/>}{showSettings && <Settings settings={settings} onChange={patchSettings} onClose={() => setShowSettings(false)}/ >}
   </div>
 }
