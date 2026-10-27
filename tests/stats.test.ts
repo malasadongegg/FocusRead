@@ -33,6 +33,21 @@ describe('ReadingTracker', () => {
     tracker.feed(st(0, true), 1); t += 300; tracker.feed(st(1, false), 1)
     expect(tracker.take('d', 'x')).toBeNull()
   })
+  it('counts the final word or partial chunk when playback completes', () => {
+    let t = 0
+    const tracker = new ReadingTracker(() => t)
+    tracker.feed(st(0, true), 2, 5)
+    t += 400; tracker.feed(st(2, true), 2, 5)
+    t += 400; tracker.feed(st(4, true), 2, 5)
+    t += 200; tracker.feed({ ...st(4, false), complete: true }, 2, 5)
+    expect(tracker.take('d', 'Doc')).toBeNull() // 5 words but below the minimum active time
+    const longer = new ReadingTracker(() => t)
+    longer.feed(st(0, true), 2, 5)
+    t += 1000; longer.feed(st(2, true), 2, 5)
+    t += 1000; longer.feed(st(4, true), 2, 5)
+    t += 200; longer.feed({ ...st(4, false), complete: true }, 2, 5)
+    expect(longer.take('d', 'Doc')?.words).toBe(5)
+  })
 })
 
 describe('summarize', () => {

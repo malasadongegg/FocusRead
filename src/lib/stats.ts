@@ -12,12 +12,13 @@ export class ReadingTracker {
   private prevAt = 0
   private startedAt = 0
   constructor(private now: () => number = () => performance.now(), private wall: () => number = () => Date.now()) {}
-  feed(state: PlaybackState, step: number) {
+  feed(state: PlaybackState, step: number, totalWords = 0) {
     const at = this.now()
     if (this.prev?.playing) {
       this.ms += at - this.prevAt
       const delta = state.index - this.prev.index
       if (delta > 0 && delta <= step) this.words += delta
+      if (state.complete && totalWords > 0) this.words += Math.min(step, totalWords - state.index)
     }
     if (state.playing && !this.prev?.playing && !this.startedAt) this.startedAt = this.wall()
     this.prev = state; this.prevAt = at

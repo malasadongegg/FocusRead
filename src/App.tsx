@@ -51,11 +51,11 @@ export default function App() {
   const tokens = useMemo(() => tokenize(text), [text])
   const engineRef = useRef<PlaybackEngine | null>(null)
   const trackerRef = useRef(new ReadingTracker())
-  const live = useRef({ settings, sessionDocumentId, title })
-  live.current = { settings, sessionDocumentId, title }
+  const live = useRef({ settings, sessionDocumentId, title, tokenCount: tokens.length })
+  live.current = { settings, sessionDocumentId, title, tokenCount: tokens.length }
   if (!engineRef.current) engineRef.current = new PlaybackEngine(settings, state => {
-    const { settings: s, sessionDocumentId: id, title: name } = live.current
-    trackerRef.current.feed(state, s.mode === 'chunk' ? s.chunkSize : 1)
+    const { settings: s, sessionDocumentId: id, title: name, tokenCount } = live.current
+    trackerRef.current.feed(state, s.mode === 'chunk' ? s.chunkSize : 1, tokenCount)
     setPlayback(state)
     if (!state.playing) {
       const record = trackerRef.current.take(id, name.trim() || 'Untitled document')
