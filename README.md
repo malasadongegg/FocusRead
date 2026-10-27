@@ -15,6 +15,8 @@ Open the local URL printed by Vite, usually http://localhost:5173.
 npm run build    # TypeScript check and offline static build in dist/
 npm run preview  # Serve the production build locally
 npm run test     # Vitest and React Testing Library
+npx playwright install chromium  # One-time browser setup for end-to-end tests
+npm run test:e2e # Browser reading, recovery, mobile anchor, and offline tests
 ```
 
 The built app can be installed as a PWA. After its first successful online load and service worker cache, it works offline, including the bundled audio worker. Documents and the resumable draft stay in IndexedDB. Only preferences and small session metadata stay in LocalStorage. No account, backend, analytics, remote fonts, or APIs are used.
@@ -47,10 +49,18 @@ The focal letter uses the character at 40% of the letter span (after leading pun
 
 Punctuation pauses are off by default. When enabled, comma, sentence, and paragraph pauses add milliseconds to each word's normal `60,000 / WPM` duration. The reader then shows approximate effective WPM alongside nominal WPM.
 
+In Settings, choose fixed pacing, a ramp from 65% to the selected WPM, or experimental adaptive pacing based on word length. The selected WPM is the target in those modes; the effective WPM estimate reflects the changing pace and optional pauses. A 3, 5, or 10 second countdown can start before each Play action. Theme presets and individual typography and focal settings are saved locally. The reader's Focus mode hides surrounding controls until you use **Exit focus mode** or press D.
+
+Guided practice uses the text already in the editor. Set a target WPM and an active reading time of 2, 5, or 10 minutes; it ramps toward the target and pauses when the time or text ends. The optional comprehension self-check asks for a summary and recalled details. It does not grade reading ability, and answers disappear when the panel closes. Local statistics include recent sessions, a seven-day chart, a daily word goal, and a streak. History stores session metadata without copying reading text.
+
 Shortcuts outside form fields: Space play/pause, ←/→ previous/next, ↑/↓ speed, R restart, F fullscreen, Escape exit fullscreen. Hidden tabs pause playback so returning cannot race through missed words.
+
+Reader shortcuts also include D for Focus mode. Shortcuts are disabled while a dialog is open or a text field is active. Escape closes dialogs, and the active dialog keeps keyboard focus inside it.
 
 ## Ambient audio
 
 Open the speaker control in the reader's bottom toolbar. Choose white, pink, or brown noise, a locally synthesized rain ambience, or silence. Set the independent 0–100% volume slider, then select **Turn on ambient audio**. Sound never starts automatically, including after a saved session is restored. The profile, volume, mute state, reading-pause option, and timer choice are saved in LocalStorage.
 
 Profile changes crossfade over 220 ms, and enabling or muting fades the sound. Noise and rain samples are generated in a bundled Web Worker so synthesis does not block the RSVP scheduler. The resulting short stereo buffers loop with a blended seam; there are no recordings, licenses, downloads, streams, or network requests. AudioContext and the worker are released when sound is muted or the reader closes. Pausing audio with reading is optional. The auto-off timer can be set to 5, 10, 15, 30, or 60 minutes; it measures wall time from when sound is turned on, including time spent paused.
+
+Audio also suspends while the browser tab is hidden and resumes when it becomes visible. Sound still requires an explicit user action before its first start.
