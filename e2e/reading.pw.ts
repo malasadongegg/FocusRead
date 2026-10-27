@@ -1,0 +1,32 @@
+import { expect, test } from '@playwright/test'
+
+test('reads, pauses, seeks, and restores a local session', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Document title').fill('Browser regression')
+  await page.getByLabel('Reading text').fill(Array.from({ length: 60 }, (_, i) => `word${i}`).join(' '))
+  await page.getByLabel('Exact WPM').fill('600')
+  await page.getByRole('button', { name: 'Start reading' }).click()
+  await expect(page.getByText('WORD 1')).toBeVisible()
+  await page.getByRole('button', { name: 'Play', exact: true }).click()
+  const progress = page.getByLabel('Reading progress')
+  await expect.poll(async () => Number(await progress.inputValue())).toBeGreaterThan(0)
+  await page.getByRole('button', { name: 'Pause', exact: true }).click()
+  const pausedIndex = Number(await progress.inputValue())
+  await page.getByRole('button', { name: 'Next word' }).click()
+  await expect(progress).toHaveValue(String(pausedIndex + 1))
+  await page.reload()
+  await page.getByRole('button', { name: /Resume session/ }).click()
+  await expect(page.getByLabel('Reading progress')).toHaveValue(String(pausedIndex + 1))
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
+})
+
+test('loads the installed app shell without a network connection', async ({ page, context }) => {
+  await page.goto('/')
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await page.reload()
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
+  await context.setOffline(true)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: /Read at the speed/ })).toBeVisible()
+  await context.setOffline(false)
+})
