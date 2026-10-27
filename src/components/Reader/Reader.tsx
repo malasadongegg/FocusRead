@@ -1,10 +1,11 @@
 import type { Mode, Preferences, Token } from '../../types'
 import { splitOrp } from '../../lib/orp'
+import { focalFontSize } from '../../lib/focalSizing'
 import TraditionalReader from './TraditionalReader'
 
 function FocusWord({ word, settings }: { word: string; settings: Preferences }) {
   const { before, focal, after } = splitOrp(word, settings.orpOffset)
-  return <div className="focus-word" role="text" aria-label={word} style={{ fontSize: `clamp(16px, ${110 / Math.max(Array.from(word).length, 8)}vw, ${settings.fontSize}px)`, fontWeight: settings.fontWeight, fontFamily: settings.fontFamily, color: settings.textColor }}>
+  return <div className="focus-word" role="text" aria-label={word} style={{ fontSize: focalFontSize(word, settings.fontSize, settings.readerWidth), fontWeight: settings.fontWeight, fontFamily: settings.fontFamily, color: settings.textColor }}>
     <span className="focus-before" aria-hidden="true">{before}</span><span className="focus-letter" aria-hidden="true" style={{ color: settings.orpEnabled ? settings.accentColor : settings.textColor, fontSize: `${settings.focalScale}em` }}>{focal}</span><span className="focus-after" aria-hidden="true">{after}</span>
   </div>
 }
