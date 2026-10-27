@@ -2,13 +2,15 @@ import { X } from 'lucide-react'
 import type { ReadingRecord } from '../../types'
 import { formatTime } from '../../lib/readingTime'
 import { summarize } from '../../lib/stats'
+import { useModalFocus } from '../../hooks/useModalFocus'
 
 type Props = { records: ReadingRecord[]; goal: number; onGoal: (goal: number) => void; onClear: () => void; onClose: () => void }
 export default function Stats({ records, goal, onGoal, onClear, onClose }: Props) {
+  const dialogRef = useModalFocus(onClose)
   const s = summarize(records, goal)
   const peak = Math.max(1, ...s.week.map(d => d.words))
   const recent = [...records].sort((a, b) => b.startedAt - a.startedAt).slice(0, 8)
-  return <div className="settings-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}><aside className="settings-panel" aria-label="Reading statistics"><div className="settings-head"><div><div className="eyebrow">YOUR PROGRESS</div><h2>Statistics</h2></div><button className="icon-button" aria-label="Close statistics" onClick={onClose}><X size={20}/></button></div><div className="settings-body">
+  return <div className="settings-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}><aside ref={dialogRef} className="settings-panel" role="dialog" aria-modal="true" aria-label="Reading statistics"><div className="settings-head"><div><div className="eyebrow">YOUR PROGRESS</div><h2>Statistics</h2></div><button className="icon-button" aria-label="Close statistics" onClick={onClose}><X size={20}/></button></div><div className="settings-body">
     <div className="stat-grid">
       <div><small>WORDS READ</small><strong>{s.totalWords.toLocaleString()}</strong></div>
       <div><small>AVERAGE WPM</small><strong>{s.averageWpm || '—'}</strong></div>
