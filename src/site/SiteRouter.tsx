@@ -24,7 +24,8 @@ export default function SiteRouter() {
     const [title, description] = metadata[route] ?? ['Page not found — FocusRead', 'Return to FocusRead.']
     document.title = title
     document.querySelector('meta[name="description"]')?.setAttribute('content', description)
-    window.scrollTo(0, 0)
+    if (location.hash) requestAnimationFrame(() => document.getElementById(location.hash.slice(1))?.scrollIntoView())
+    else window.scrollTo(0, 0)
   }, [route])
   if (route === '/app') return <Suspense fallback={<div className="route-loading">Opening your reading space…</div>}><Workspace/></Suspense>
   const page = route === '/' ? <LandingPage/> : route === '/features' ? <FeaturesPage/> : route === '/progress' ? <ProgressPage/> : route === '/privacy' ? <PrivacyPage/> : route === '/docs' ? <DocsPage/> : <div className="page-container not-found"><span className="overline">404</span><h1>We couldn't find that page.</h1><p>The reader is still right where you left it.</p><a href="/app" className="solid-cta">Open reader</a></div>
