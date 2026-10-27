@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, BookOpen, Brain, Check, ChevronLeft, Clock3, Command, Expand, Focus, Maximize2, Moon, Settings2, Sun, Target } from 'lucide-react'
 import TextEditor from './components/TextEditor/TextEditor'
 import Reader from './components/Reader/Reader'
@@ -193,7 +193,7 @@ export default function App() {
   }
   const dark = settings.theme === 'dark' || (settings.theme === 'system' && systemDark)
   const setWpm = (wpm: number) => patchSettings({ wpm })
-  useEffect(() => {
+  useLayoutEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (view !== 'reader' || !shouldHandleReaderShortcut(event, showSettings || showStats || showPractice || showComprehension)) return
       const key = event.key.toLowerCase()
