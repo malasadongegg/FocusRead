@@ -18,10 +18,11 @@ export function SiteLink({ to, onClick, ...props }: Omit<AnchorHTMLAttributes<HT
     onClick?.(event)
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || props.target === '_blank') return
     event.preventDefault()
-    if (location.pathname !== to) {
+    if (`${location.pathname}${location.hash}` !== to) {
       history.pushState(null, '', to)
       dispatchEvent(new PopStateEvent('popstate'))
     }
+    if (to.includes('#')) requestAnimationFrame(() => document.getElementById(to.split('#')[1])?.scrollIntoView())
   }
   return <a {...props} href={to} onClick={navigate}/>
 }
