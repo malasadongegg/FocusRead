@@ -23,6 +23,7 @@ describe('text and focus', () => {
     expect(orpIndex('!a', 20)).toBe(1)
     expect(/[\p{L}\p{N}]/u.test(splitOrp("rock'n'roll").focal)).toBe(true)
     expect(/[\p{L}\p{N}]/u.test(splitOrp('co-operate', -1).focal)).toBe(true)
+    expect(splitOrp('e\u0301').focal).toBe('e\u0301')
   })
   it('uses strict 60,000 / WPM timing and optional punctuation', () => {
     expect(msPerWord(300)).toBe(200)
