@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { tokenize } from '../src/lib/tokenizer'
 import { orpIndex, splitOrp } from '../src/lib/orp'
-import { msPerWord, tokenDuration } from '../src/lib/readingTime'
+import { msPerWord, paceWpmAt, remainingDuration, tokenDuration } from '../src/lib/readingTime'
 import { PlaybackEngine } from '../src/lib/playbackEngine'
 import { readSession, writeLocal } from '../src/lib/storage'
 import { defaults } from '../src/lib/defaults'
@@ -31,6 +31,16 @@ describe('text and focus', () => {
     const settings = { ...defaults, punctuation: true }
     expect(tokenDuration(words, 0, settings)).toBe(350)
     expect(tokenDuration(words, 1, settings)).toBe(1000)
+  })
+  it('ramps to target speed and adapts deterministically to word length', () => {
+    const words = tokenize('a extraordinary middle')
+    const ramp = { ...defaults, paceMode: 'ramp' as const, rampUpWords: 2 }
+    expect(paceWpmAt(words, 0, ramp)).toBe(195)
+    expect(paceWpmAt(words, 2, ramp)).toBe(300)
+    const adaptive = { ...defaults, paceMode: 'adaptive' as const }
+    expect(tokenDuration(words, 1, adaptive)).toBeGreaterThan(tokenDuration(words, 0, adaptive))
+    expect(remainingDuration(words, 0, adaptive)).toBeCloseTo(words.reduce((sum, _, i) => sum + tokenDuration(words, i, adaptive), 0))
+    expect(msPerWord(Number.NaN)).toBe(200)
   })
 })
 describe('deadline playback', () => {

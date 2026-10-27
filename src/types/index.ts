@@ -1,9 +1,10 @@
 export type Mode = 'rsvp' | 'chunk' | 'traditional'
 export type Theme = 'dark' | 'light' | 'system'
 export type AudioProfile = 'silence' | 'white' | 'pink' | 'brown' | 'rain'
+export type PaceMode = 'fixed' | 'ramp' | 'adaptive'
 export interface Token { text: string; start: number; end: number; paragraphBefore: boolean }
 export interface Preferences {
-  wpm: number; fineSpeed: boolean; mode: Mode; chunkSize: number; theme: Theme;
+  wpm: number; fineSpeed: boolean; mode: Mode; chunkSize: number; theme: Theme; paceMode: PaceMode; rampUpWords: number;
   fontFamily: string; fontSize: number; fontWeight: number; textColor: string; accentColor: string; backgroundColor: string;
   orpEnabled: boolean; orpOffset: number; focalScale: number; verticalGuide: boolean; horizontalGuides: boolean;
   punctuation: boolean; commaPause: number; sentencePause: number; paragraphPause: number;
