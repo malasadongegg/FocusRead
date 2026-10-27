@@ -88,7 +88,7 @@ export default function App() {
   }, [])
   useEffect(() => { if (view === 'reader') writeLocal('session', { documentId: sessionDocumentId, index: playback.index, elapsedMs: playback.elapsedMs, updatedAt: Date.now(), complete: playback.complete } satisfies Session) }, [view, sessionDocumentId, playback.index, playback.elapsedMs, playback.complete])
   useEffect(() => { const query = matchMedia('(prefers-color-scheme: light)'); const change = () => setSystemDark(!query.matches); query.addEventListener('change', change); return () => query.removeEventListener('change', change) }, [])
-  useEffect(() => { const onVisibility = () => { if (document.hidden) { engine.pause(); countdown.cancel() } }; document.addEventListener('visibilitychange', onVisibility); return () => document.removeEventListener('visibilitychange', onVisibility) }, [engine, countdown.cancel])
+  useEffect(() => { const onVisibility = () => { audioEngine.setHidden(document.hidden); if (document.hidden) { engine.pause(); countdown.cancel() } }; document.addEventListener('visibilitychange', onVisibility); return () => document.removeEventListener('visibilitychange', onVisibility) }, [engine, audioEngine, countdown.cancel])
   useEffect(() => { if (view !== 'reader') countdown.cancel() }, [view, countdown.cancel])
   useEffect(() => {
     if (practice && playback.playing && playback.elapsedMs >= practice.minutes * 60000) {

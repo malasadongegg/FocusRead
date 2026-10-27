@@ -78,6 +78,7 @@ export class AmbientAudioEngine {
   private workerRequestId = 0
   private settings: AmbientSettings = { profile: 'rain', volume: 40, muted: true, pauseWithReading: false, timerMinutes: 0 }
   private readingPlaying = false
+  private hidden = false
   private activated = false
   private generation = 0
   private idleTimer: ReturnType<typeof setTimeout> | null = null
@@ -156,6 +157,12 @@ export class AmbientAudioEngine {
     void this.sync()
   }
 
+  setHidden(hidden: boolean) {
+    if (this.hidden === hidden) return
+    this.hidden = hidden
+    void this.sync()
+  }
+
   private resetOffTimer() {
     if (this.offTimer) clearTimeout(this.offTimer)
     this.offTimer = null
@@ -195,7 +202,7 @@ export class AmbientAudioEngine {
     if (this.idleTimer) clearTimeout(this.idleTimer)
     this.idleTimer = null
     if (!this.activated) return
-    const shouldPlay = !this.settings.muted && this.settings.profile !== 'silence' && (!this.settings.pauseWithReading || this.readingPlaying)
+    const shouldPlay = !this.hidden && !this.settings.muted && this.settings.profile !== 'silence' && (!this.settings.pauseWithReading || this.readingPlaying)
     if (!shouldPlay) {
       this.fadeMaster(0, FADE_SECONDS)
       this.retireVoice()

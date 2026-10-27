@@ -63,6 +63,18 @@ describe('ambient audio engine', () => {
     expect(engine.hasContext).toBe(false)
     engine.destroy()
   })
+  it('suspends in a hidden tab even when pause-with-reading is off', async () => {
+    const fake = fakeContext(), engine = new AmbientAudioEngine(vi.fn(), () => fake.context)
+    await engine.activate({ ...base, muted: false }, true)
+    engine.setHidden(true)
+    vi.advanceTimersByTime(300)
+    expect(fake.raw.suspend).toHaveBeenCalledOnce()
+    expect(engine.hasContext).toBe(true)
+    engine.setHidden(false)
+    for (let i = 0; i < 4; i++) await Promise.resolve()
+    expect(fake.raw.resume).toHaveBeenCalledTimes(3)
+    engine.destroy()
+  })
   it('fades to silence and frees the context without creating another source', async () => {
     const fake = fakeContext(), engine = new AmbientAudioEngine(vi.fn(), () => fake.context)
     await engine.activate({ ...base, muted: false }, true)
