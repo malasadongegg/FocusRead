@@ -6,11 +6,9 @@ export function orpIndex(word: string, offset = 0): number {
   if (!chars.length) return 0
   const first = chars.findIndex(char => /[\p{L}\p{N}]/u.test(char))
   if (first < 0) return 0
-  let last = chars.length - 1
-  while (last > first && !/[\p{L}\p{N}]/u.test(chars[last])) last--
-  const length = last - first + 1
-  const base = length === 1 ? 0 : Math.round(length * .4)
-  return Math.min(last, Math.max(first, first + base + offset))
+  const letters = chars.map((char, index) => /[\p{L}\p{N}]/u.test(char) ? index : -1).filter(index => index >= 0)
+  const base = letters.length === 1 ? 0 : Math.round(letters.length * .4)
+  return letters[Math.min(letters.length - 1, Math.max(0, base + offset))]
 }
 export function splitOrp(word: string, offset = 0) {
   const chars = Array.from(word)

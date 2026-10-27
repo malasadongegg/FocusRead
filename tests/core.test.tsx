@@ -21,6 +21,8 @@ describe('text and focus', () => {
   it('selects the documented focal letters and clamps offsets', () => {
     for (const [word, letter] of [['reading','d'],['focus','c'],['speed','e'],['computer','p']]) expect(splitOrp(word).focal).toBe(letter)
     expect(orpIndex('!a', 20)).toBe(1)
+    expect(/[\p{L}\p{N}]/u.test(splitOrp("rock'n'roll").focal)).toBe(true)
+    expect(/[\p{L}\p{N}]/u.test(splitOrp('co-operate', -1).focal)).toBe(true)
   })
   it('uses strict 60,000 / WPM timing and optional punctuation', () => {
     expect(msPerWord(300)).toBe(200)
