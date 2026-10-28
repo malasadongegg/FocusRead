@@ -22,3 +22,14 @@ it('stores an annotation at its word index without copying document text', async
   expect(await listMarks('draft', mark.sourceHash)).toEqual([mark])
   expect(JSON.stringify((await listMarks('draft', mark.sourceHash))[0])).not.toContain('Read this')
 })
+
+it('indexes marks created by an older database version without removing them', async () => {
+  const mark = { id: 'legacy-note', documentId: 'doc', sourceHash: 'revision', index: 3, kind: 'annotation' as const, label: 'word', createdAt: 1 }
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open('focusread-library', 4)
+    request.onupgradeneeded = () => request.result.createObjectStore('marks', { keyPath: 'id' })
+    request.onsuccess = () => { const db = request.result; const tx = db.transaction('marks', 'readwrite'); tx.objectStore('marks').put(mark); tx.oncomplete = () => { db.close(); resolve() }; tx.onerror = () => reject(tx.error) }
+    request.onerror = () => reject(request.error)
+  })
+  expect(await listMarks('doc', 'revision')).toEqual([mark])
+})

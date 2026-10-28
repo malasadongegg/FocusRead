@@ -11,13 +11,14 @@ let databasePromise: Promise<IDBDatabase> | null = null
 
 function openDatabase(): Promise<IDBDatabase> {
   if (!databasePromise) databasePromise = new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DATABASE, 4)
+    const request = indexedDB.open(DATABASE, 5)
     request.onupgradeneeded = () => {
       const database = request.result
       if (!database.objectStoreNames.contains(DOCUMENTS)) database.createObjectStore(DOCUMENTS, { keyPath: 'id' })
       if (!database.objectStoreNames.contains(DRAFTS)) database.createObjectStore(DRAFTS, { keyPath: 'id' })
       if (!database.objectStoreNames.contains(SESSIONS)) database.createObjectStore(SESSIONS, { keyPath: 'id' })
-      if (!database.objectStoreNames.contains(MARKS)) database.createObjectStore(MARKS, { keyPath: 'id' })
+      const marks = database.objectStoreNames.contains(MARKS) ? request.transaction!.objectStore(MARKS) : database.createObjectStore(MARKS, { keyPath: 'id' })
+      if (!marks.indexNames.contains('byDocumentRevision')) marks.createIndex('byDocumentRevision', ['documentId', 'sourceHash'])
       if (!database.objectStoreNames.contains(ASSESSMENTS)) database.createObjectStore(ASSESSMENTS, { keyPath: 'id' })
     }
     request.onsuccess = () => resolve(request.result)
@@ -57,8 +58,8 @@ export const listReadings = () => transact<ReadingRecord[]>(SESSIONS, 'readonly'
 export const putReadings = (records: ReadingRecord[]) => transact<void>(SESSIONS, 'readwrite', store => { records.forEach(record => store.put(record)) })
 export const clearReadings = () => transact<void>(SESSIONS, 'readwrite', store => { store.clear() })
 export const listMarks = (documentId: string, sourceHash: string) => transact<DocumentMark[]>(MARKS, 'readonly', (store, setResult) => {
-  const request = store.getAll()
-  request.onsuccess = () => setResult((request.result as DocumentMark[]).filter(mark => mark.documentId === documentId && mark.sourceHash === sourceHash).sort((a, b) => a.index - b.index))
+  const request = store.index('byDocumentRevision').getAll([documentId, sourceHash])
+  request.onsuccess = () => setResult((request.result as DocumentMark[]).sort((a, b) => a.index - b.index))
 })
 export const putMark = (mark: DocumentMark) => transact<void>(MARKS, 'readwrite', store => { store.put(mark) })
 export const deleteMark = (id: string) => transact<void>(MARKS, 'readwrite', store => { store.delete(id) })
