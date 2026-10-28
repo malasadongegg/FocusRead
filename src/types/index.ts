@@ -11,7 +11,7 @@ export interface Preferences {
   orpEnabled: boolean; orpOffset: number; focalScale: number; verticalGuide: boolean; horizontalGuides: boolean;
   punctuation: boolean; commaPause: number; sentencePause: number; paragraphPause: number;
   readerWidth: number; fullscreenPreference: boolean; reducedMotion: boolean; countdownSeconds: number;
-  audioProfile: AudioProfile; audioVolume: number; audioMuted: boolean; audioPauseWithReading: boolean; audioTimerMinutes: number; dailyGoalWords: number;
+  audioProfile: AudioProfile; audioVolume: number; audioMuted: boolean; audioPauseWithReading: boolean; audioTimerMinutes: number; dailyGoalWords: number; weeklyGoalWords: number;
 }
 export interface DocumentRecord { id: string; title: string; text: string; updatedAt: number }
 export interface Session { documentId: string; index: number; elapsedMs: number; updatedAt: number; title?: string; text?: string; complete?: boolean }

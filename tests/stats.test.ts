@@ -66,6 +66,14 @@ describe('summarize', () => {
     expect(summarize([], 1000, now)).toMatchObject({ streak: 0, averageWpm: 0 })
   })
   it('dayKey uses the local calendar day', () => { expect(dayKey(new Date(2026, 0, 5, 23, 59).getTime())).toBe('2026-01-05') })
+  it('resets the weekly goal on Monday and groups by the current local calendar day', () => {
+    const monday = new Date(2026, 9, 26, 12).getTime()
+    const sunday = rec('2026-10-25', 500)
+    const today = rec('2026-10-26', 200)
+    expect(summarize([sunday, today], 1000, monday, 1000)).toMatchObject({ currentWeekWords: 200, weeklyGoalProgress: .2 })
+    const movedZoneRecord = { ...today, day: '2026-10-25' }
+    expect(summarize([movedZoneRecord], 1000, monday).todayWords).toBe(200)
+  })
 })
 
 describe('reading history persistence and backup', () => {

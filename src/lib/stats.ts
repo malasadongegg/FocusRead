@@ -40,20 +40,23 @@ const shiftDay = (time: number, days: number) => { const d = new Date(time); d.s
 
 export interface StatsSummary {
   totalWords: number; totalMs: number; averageWpm: number; sessions: number
-  todayWords: number; goalProgress: number; streak: number; week: { day: string; words: number }[]
+  todayWords: number; goalProgress: number; streak: number; week: { day: string; words: number }[]; currentWeekWords: number; weeklyGoalProgress: number
 }
-export function summarize(records: ReadingRecord[], goal: number, now = Date.now()): StatsSummary {
+export function summarize(records: ReadingRecord[], goal: number, now = Date.now(), weeklyGoal = 5000): StatsSummary {
   const byDay = new Map<string, number>()
   let totalWords = 0, totalMs = 0
-  for (const r of records) { totalWords += r.words; totalMs += r.activeMs; byDay.set(r.day, (byDay.get(r.day) ?? 0) + r.words) }
+  for (const r of records) { totalWords += r.words; totalMs += r.activeMs; const currentLocalDay = dayKey(r.startedAt); byDay.set(currentLocalDay, (byDay.get(currentLocalDay) ?? 0) + r.words) }
   const target = Math.max(1, goal)
   const metGoal = (offset: number) => (byDay.get(dayKey(shiftDay(now, offset))) ?? 0) >= target
   // A streak stays alive through today until the day ends.
   let streak = 0
   for (let offset = metGoal(0) ? 0 : -1; metGoal(offset); offset--) streak++
   const todayWords = byDay.get(dayKey(now)) ?? 0
+  const weekStart = new Date(now); weekStart.setHours(0, 0, 0, 0); weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7))
+  let currentWeekWords = 0
+  for (let day = new Date(weekStart); day.getTime() <= now; day.setDate(day.getDate() + 1)) currentWeekWords += byDay.get(dayKey(day.getTime())) ?? 0
   return {
-    totalWords, totalMs, sessions: records.length, todayWords, streak,
+    totalWords, totalMs, sessions: records.length, todayWords, streak, currentWeekWords, weeklyGoalProgress: Math.min(1, currentWeekWords / Math.max(1, weeklyGoal)),
     averageWpm: totalMs > 0 ? Math.round(totalWords / (totalMs / 60000)) : 0,
     goalProgress: Math.min(1, todayWords / target),
     week: Array.from({ length: 7 }, (_, i) => { const day = dayKey(shiftDay(now, i - 6)); return { day, words: byDay.get(day) ?? 0 } }),
