@@ -19,6 +19,7 @@ export function extractEpub(bytes: Uint8Array): string {
     if (extractedBytes > MAX_EXTRACTED) throw new Error('The EPUB expands beyond the import size limit.')
     return true
   } })
+  if (Object.values(entries).reduce((size, entry) => size + entry.byteLength, 0) > MAX_EXTRACTED) throw new Error('The EPUB expands beyond the import size limit.')
   const container = entries['META-INF/container.xml']
   if (!container) throw new Error('This EPUB has no package index.')
   const parser = new DOMParser()

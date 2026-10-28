@@ -12,9 +12,10 @@ export function captureProfile(settings: Preferences): ProfileSettings {
 export function isReadingProfile(value: unknown): value is ReadingProfile {
   if (!value || typeof value !== 'object') return false
   const item = value as Record<string, unknown>
-  if (typeof item.id !== 'string' || typeof item.name !== 'string' || !item.name.trim() || typeof item.createdAt !== 'number' || !item.settings || typeof item.settings !== 'object') return false
+  if (typeof item.id !== 'string' || !item.id || typeof item.name !== 'string' || !item.name.trim() || item.name.length > 80 || typeof item.createdAt !== 'number' || !Number.isFinite(item.createdAt) || !item.settings || typeof item.settings !== 'object') return false
   const s = item.settings as Record<string, unknown>
-  return profileFields.every(key => typeof s[key] === typeof defaults[key] && (typeof s[key] !== 'number' || Number.isFinite(s[key]))) && Number(s.wpm) >= 100 && Number(s.wpm) <= 1500 && ['rsvp', 'chunk', 'traditional'].includes(String(s.mode)) && Number(s.fontSize) >= 40 && Number(s.fontSize) <= 120 && ['dark', 'light', 'system'].includes(String(s.theme)) && ['fixed', 'ramp', 'adaptive'].includes(String(s.paceMode)) && ['silence', 'white', 'pink', 'brown', 'rain'].includes(String(s.audioProfile)) && Number(s.audioVolume) >= 0 && Number(s.audioVolume) <= 100
+  const within = (key: string, min: number, max: number) => typeof s[key] === 'number' && Number.isFinite(s[key]) && Number(s[key]) >= min && Number(s[key]) <= max
+  return profileFields.every(key => typeof s[key] === typeof defaults[key] && (typeof s[key] !== 'number' || Number.isFinite(s[key]))) && within('wpm', 100, 1500) && within('chunkSize', 2, 5) && within('fontSize', 40, 120) && within('fontWeight', 400, 700) && within('commaPause', 0, 800) && within('sentencePause', 0, 1200) && within('paragraphPause', 0, 1600) && within('audioVolume', 0, 100) && ['rsvp', 'chunk', 'traditional'].includes(String(s.mode)) && ['dark', 'light', 'system'].includes(String(s.theme)) && ['fixed', 'ramp', 'adaptive'].includes(String(s.paceMode)) && ['silence', 'white', 'pink', 'brown', 'rain'].includes(String(s.audioProfile))
 }
 export function readProfiles(): ReadingProfile[] { const stored = readLocal<unknown>('profiles', []); return Array.isArray(stored) ? stored.filter(isReadingProfile) : [] }
 export function saveProfiles(profiles: ReadingProfile[]) { return writeLocal('profiles', profiles) }
