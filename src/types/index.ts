@@ -6,6 +6,7 @@ export interface PracticeGoal { wpm: number; minutes: number }
 export interface Token { text: string; start: number; end: number; paragraphBefore: boolean }
 export interface Preferences {
   wpm: number; fineSpeed: boolean; mode: Mode; chunkSize: number; theme: Theme; paceMode: PaceMode; rampUpWords: number;
+  adaptiveLength: boolean; adaptiveBoundaries: boolean;
   fontFamily: string; fontSize: number; fontWeight: number; textColor: string; accentColor: string; backgroundColor: string;
   orpEnabled: boolean; orpOffset: number; focalScale: number; verticalGuide: boolean; horizontalGuides: boolean;
   punctuation: boolean; commaPause: number; sentencePause: number; paragraphPause: number;

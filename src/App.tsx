@@ -219,7 +219,7 @@ export default function App() {
     const suffix = new Float64Array(tokens.length + 1)
     for (let i = tokens.length - 1; i >= 0; i--) suffix[i] = suffix[i + 1] + tokenDuration(tokens, i, settings)
     return suffix
-  }, [tokens, settings.wpm, settings.punctuation, settings.commaPause, settings.sentencePause, settings.paragraphPause, settings.paceMode, settings.rampUpWords])
+  }, [tokens, settings.wpm, settings.punctuation, settings.commaPause, settings.sentencePause, settings.paragraphPause, settings.paceMode, settings.rampUpWords, settings.adaptiveLength, settings.adaptiveBoundaries])
   const estimated = durationSuffix?.[0] ?? tokens.length * msPerWord(settings.wpm)
   const remaining = playback.complete ? 0 : durationSuffix?.[playback.index] ?? Math.max(0, tokens.length - playback.index) * msPerWord(settings.wpm)
   const effectiveWpm = estimated ? Math.round(tokens.length / (estimated / 60000)) : settings.wpm
