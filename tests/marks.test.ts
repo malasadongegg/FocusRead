@@ -15,3 +15,10 @@ it('upgrades a document library and anchors marks to the correct text revision',
   await deleteMark(mark.id)
   expect(await listMarks('doc', sourceHash)).toEqual([])
 })
+
+it('stores an annotation at its word index without copying document text', async () => {
+  const mark = { id: 'note-1', documentId: 'draft', sourceHash: documentFingerprint('Read this'), index: 1, kind: 'annotation' as const, label: 'this', note: 'Compare with earlier chapter', createdAt: 2 }
+  await putMark(mark)
+  expect(await listMarks('draft', mark.sourceHash)).toEqual([mark])
+  expect(JSON.stringify((await listMarks('draft', mark.sourceHash))[0])).not.toContain('Read this')
+})
