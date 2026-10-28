@@ -76,7 +76,7 @@ export function isMark(value: unknown): value is DocumentMark {
 export function isAssessment(value: unknown): value is AssessmentRecord {
   if (!value || typeof value !== 'object') return false
   const item = value as Record<string, unknown>
-  return typeof item.id === 'string' && typeof item.documentId === 'string' && typeof item.passageId === 'string' && [item.selectedWpm, item.correct, item.total, item.completedAt].every(number => typeof number === 'number' && Number.isFinite(number) && number >= 0) && (item.correct as number) <= (item.total as number)
+  return typeof item.id === 'string' && typeof item.documentId === 'string' && typeof item.passageId === 'string' && (item.readingId === undefined || typeof item.readingId === 'string') && (item.observedWpm === undefined || typeof item.observedWpm === 'number' && Number.isFinite(item.observedWpm) && item.observedWpm > 0) && [item.selectedWpm, item.correct, item.total, item.completedAt].every(number => typeof number === 'number' && Number.isFinite(number) && number >= 0) && (item.correct as number) <= (item.total as number)
 }
 export function isReading(value: unknown): value is ReadingRecord {
   if (!value || typeof value !== 'object') return false

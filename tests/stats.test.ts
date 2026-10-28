@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { PlaybackEngine, type PlaybackState } from '../src/lib/playbackEngine'
 import { closeLibrary, clearReadings, listReadings, putReadings } from '../src/lib/library'
 import { createLibraryBackup, parseBackupReadings, parseLibraryBackup } from '../src/lib/libraryBackup'
-import { ReadingTracker, compareRecentWeeks, dayKey, summarize } from '../src/lib/stats'
+import { ReadingTracker, compareRecentWeeks, dayKey, observedWpm, summarize } from '../src/lib/stats'
 import { tokenize } from '../src/lib/tokenizer'
 import { defaults } from '../src/lib/defaults'
 import type { ReadingRecord } from '../src/types'
@@ -66,6 +66,10 @@ describe('summarize', () => {
     expect(summarize([], 1000, now)).toMatchObject({ streak: 0, averageWpm: 0 })
   })
   it('dayKey uses the local calendar day', () => { expect(dayKey(new Date(2026, 0, 5, 23, 59).getTime())).toBe('2026-01-05') })
+  it('derives observed WPM only from recorded words and active time', () => {
+    expect(observedWpm(rec('2026-10-26', 120, 60000))).toBe(120)
+    expect(observedWpm(rec('2026-10-26', 120, 0))).toBeUndefined()
+  })
   it('compares observed sessions in adjacent windows and only counts known completions', () => {
     const now = Date.parse('2026-10-28T12:00:00')
     const recent = { ...rec('2026-10-27', 120), completed: true }

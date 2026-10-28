@@ -17,7 +17,7 @@ import Calibration from './components/Calibration/Calibration'
 import FocusTimer from './components/Practice/FocusTimer'
 import { usePlaybackCountdown } from './hooks/usePlaybackCountdown'
 import { shouldHandleReaderShortcut } from './lib/shortcuts'
-import { ReadingTracker } from './lib/stats'
+import { ReadingTracker, observedWpm } from './lib/stats'
 import AmbientAudio from './components/AmbientAudio/AmbientAudio'
 import { AmbientAudioEngine, type AmbientSettings } from './lib/ambientAudio'
 import { PlaybackEngine, type PlaybackState } from './lib/playbackEngine'
@@ -67,6 +67,7 @@ export default function App() {
   const annotatedIndices = useMemo(() => marks.filter(mark => mark.kind === 'annotation').map(mark => mark.index), [marks])
   const engineRef = useRef<PlaybackEngine | null>(null)
   const trackerRef = useRef(new ReadingTracker())
+  const completedReadingRef = useRef<{ record: ReadingRecord; selectedWpm: number } | null>(null)
   const live = useRef({ settings, sessionDocumentId, title, tokenCount: tokens.length })
   live.current = { settings, sessionDocumentId, title, tokenCount: tokens.length }
   if (!engineRef.current) engineRef.current = new PlaybackEngine(settings, state => {
@@ -75,7 +76,7 @@ export default function App() {
     setPlayback(state)
     if (!state.playing) {
       const record = trackerRef.current.take(id, name.trim() || 'Untitled document')
-      if (record) { setReadings(previous => [...previous, record]); void putReadings([record]).catch(() => setLibraryStatus('Reading history could not be saved on this device.')) }
+      if (record) { if (state.complete) completedReadingRef.current = { record, selectedWpm: s.wpm }; setReadings(previous => [...previous, record]); void putReadings([record]).catch(() => setLibraryStatus('Reading history could not be saved on this device.')) }
     }
   })
   const engine = engineRef.current
@@ -143,6 +144,7 @@ export default function App() {
       catch { setLibraryStatus('Reading works, but this draft could not be saved for later.') }
     }
     engine.load(tokens)
+    completedReadingRef.current = null
     setView('reader'); setShowResume(false)
     if (settings.fullscreenPreference) void document.documentElement.requestFullscreen?.().catch(() => {})
   }
@@ -162,7 +164,7 @@ export default function App() {
       setSessionDocumentId(session.documentId)
       setDocumentId(session.documentId === 'draft' ? null : session.documentId)
       setTitle(restored.title); setText(restored.text)
-      engine.load(tokenize(settings.cleanFormatting ? prepareReadingText(restored.text) : restored.text), session.index, session.elapsedMs); setView('reader')
+      engine.load(tokenize(settings.cleanFormatting ? prepareReadingText(restored.text) : restored.text), session.index, session.elapsedMs); completedReadingRef.current = null; setView('reader')
     } catch { setLibraryStatus('The saved reading could not be restored on this device.') }
     setShowResume(false)
   }
@@ -181,7 +183,8 @@ export default function App() {
   const saveAssessment = async (correct: number, total: number) => {
     const passage = matchingSample(text)
     if (!passage) return
-    await putAssessment({ id: newId(), documentId: sessionDocumentId, passageId: passage.id, selectedWpm: settings.wpm, correct, total, completedAt: Date.now() })
+    const completed = completedReadingRef.current?.record.documentId === sessionDocumentId ? completedReadingRef.current : null
+    await putAssessment({ id: newId(), documentId: sessionDocumentId, passageId: passage.id, selectedWpm: completed?.selectedWpm ?? settings.wpm, observedWpm: completed ? observedWpm(completed.record) : undefined, readingId: completed?.record.id, correct, total, completedAt: Date.now() })
   }
   const removeMark = async (id: string) => { try { await deleteMark(id); setMarks(previous => previous.filter(mark => mark.id !== id)) } catch { setLibraryStatus('Could not remove bookmark.') } }
   const exportLibrary = async () => {

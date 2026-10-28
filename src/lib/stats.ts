@@ -74,3 +74,6 @@ export function compareRecentWeeks(records: ReadingRecord[], now = Date.now()) {
   const total = (items: ReadingRecord[]) => ({ words: items.reduce((sum, item) => sum + item.words, 0), minutes: Math.round(items.reduce((sum, item) => sum + item.activeMs, 0) / 60000), sessions: items.length, completed: items.filter(item => item.completed === true).length })
   return { recent: total(recent), previous: total(previous) }
 }
+export function observedWpm(record: ReadingRecord): number | undefined {
+  return record.activeMs > 0 && record.words > 0 ? Math.round(record.words / (record.activeMs / 60000)) : undefined
+}

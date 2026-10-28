@@ -205,7 +205,7 @@ test('calibration and named reading profiles stay local', async ({ page }) => {
 test('completed bundled passage produces a local quiz result', async ({ page }) => {
   await page.goto('/app')
   await page.getByRole('button', { name: 'Load sample passage' }).click()
-  await page.getByLabel('Exact WPM').fill('1500')
+  await page.getByLabel('Exact WPM').fill('600')
   await page.getByRole('button', { name: 'Start reading' }).click()
   await page.getByRole('button', { name: 'Play', exact: true }).click()
   await expect(page.getByText('SESSION COMPLETE')).toBeVisible({ timeout: 10000 })
@@ -215,7 +215,8 @@ test('completed bundled passage produces a local quiz result', async ({ page }) 
   await page.getByRole('button', { name: 'Check answers' }).click()
   await expect(page.getByText(/2 of 2 correct/)).toBeVisible()
   await page.goto('/progress')
-  await expect(page.getByText('1500 selected WPM')).toBeVisible()
+  await expect(page.getByText('600 selected WPM')).toBeVisible()
+  await expect(page.getByText(/observed WPM/)).toBeVisible()
 })
 
 test('PDF parsing worker remains available after offline caching', async ({ page, context }) => {

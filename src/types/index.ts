@@ -17,4 +17,4 @@ export interface DocumentRecord { id: string; title: string; text: string; updat
 export interface Session { documentId: string; index: number; elapsedMs: number; updatedAt: number; title?: string; text?: string; complete?: boolean }
 export interface ReadingRecord { id: string; documentId: string; title: string; day: string; startedAt: number; words: number; activeMs: number; completed?: boolean }
 export interface DocumentMark { id: string; documentId: string; sourceHash: string; index: number; kind: 'bookmark' | 'annotation'; label: string; note?: string; createdAt: number }
-export interface AssessmentRecord { id: string; documentId: string; passageId: string; selectedWpm: number; correct: number; total: number; completedAt: number }
+export interface AssessmentRecord { id: string; documentId: string; passageId: string; selectedWpm: number; observedWpm?: number; readingId?: string; correct: number; total: number; completedAt: number }

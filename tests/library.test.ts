@@ -58,7 +58,7 @@ describe('library backup', () => {
   })
   it('backs up marks, quiz results, and a resumable draft without changing older backups', () => {
     const mark = { id: 'm1', documentId: 'draft', sourceHash: 'hash', index: 1, kind: 'annotation' as const, label: 'word', note: 'My note', createdAt: 2 }
-    const assessment = { id: 'a1', documentId: 'draft', passageId: 'garden', selectedWpm: 300, correct: 1, total: 2, completedAt: 3 }
+    const assessment = { id: 'a1', documentId: 'draft', passageId: 'garden', selectedWpm: 300, observedWpm: 280, readingId: 'r1', correct: 1, total: 2, completedAt: 3 }
     const draft = { id: 'current' as const, title: 'Draft', text: 'Sensitive material', updatedAt: 4 }
     const backup = createLibraryBackup([], [], [mark], [assessment], draft)
     expect(parseBackupMarks(backup)).toEqual([mark])
