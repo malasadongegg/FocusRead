@@ -26,6 +26,7 @@ import { defaults } from './lib/defaults'
 import { calibrationPassages } from './lib/calibration'
 import { matchingSample } from './lib/assessment'
 import { documentFingerprint } from './lib/documentFingerprint'
+import { prepareReadingText } from './lib/preprocess'
 import { readPreferences, readSession, writeLocal } from './lib/storage'
 import { clearReadings, deleteDocument, deleteMark, getDocument, getDraft, listDocuments, listMarks, listReadings, migrateLegacyLibrary, putAssessment, putDocument, putDocuments, putDraft, putMark, putReadings } from './lib/library'
 import { createLibraryBackup, mergeDocuments, parseBackupReadings, parseLibraryBackup } from './lib/libraryBackup'
@@ -58,8 +59,9 @@ export default function App() {
   const [playback, setPlayback] = useState<PlaybackState>({ index: 0, playing: false, complete: false, elapsedMs: 0 })
   const [audioReady, setAudioReady] = useState(false)
   const [audioError, setAudioError] = useState<string | null>(null)
-  const tokens = useMemo(() => tokenize(text), [text])
-  const sourceHash = useMemo(() => documentFingerprint(text), [text])
+  const readingText = useMemo(() => settings.cleanFormatting ? prepareReadingText(text) : text, [text, settings.cleanFormatting])
+  const tokens = useMemo(() => tokenize(readingText), [readingText])
+  const sourceHash = useMemo(() => documentFingerprint(readingText), [readingText])
   const annotatedIndices = useMemo(() => marks.filter(mark => mark.kind === 'annotation').map(mark => mark.index), [marks])
   const engineRef = useRef<PlaybackEngine | null>(null)
   const trackerRef = useRef(new ReadingTracker())
@@ -88,6 +90,7 @@ export default function App() {
   const audioSettings = useMemo<AmbientSettings>(() => ({ profile: settings.audioProfile, volume: settings.audioVolume, muted: settings.audioMuted, pauseWithReading: settings.audioPauseWithReading, timerMinutes: settings.audioTimerMinutes }), [settings.audioProfile, settings.audioVolume, settings.audioMuted, settings.audioPauseWithReading, settings.audioTimerMinutes])
 
   useEffect(() => { engine.update(settings); writeLocal('preferences', settings) }, [engine, settings])
+  useEffect(() => { if (view === 'reader') { const position = engine.snapshot(); engine.load(tokens, position.index, position.elapsedMs) } }, [engine, tokens, view])
   useEffect(() => { audioEngine.update(audioSettings, playback.playing) }, [audioEngine, audioSettings, playback.playing])
   useEffect(() => { if (view === 'editor') { audioEngine.destroy(); setAudioReady(false) } }, [view, audioEngine])
   useEffect(() => () => audioEngine.destroy(), [audioEngine])
@@ -157,7 +160,7 @@ export default function App() {
       setSessionDocumentId(session.documentId)
       setDocumentId(session.documentId === 'draft' ? null : session.documentId)
       setTitle(restored.title); setText(restored.text)
-      engine.load(tokenize(restored.text), session.index, session.elapsedMs); setView('reader')
+      engine.load(tokenize(settings.cleanFormatting ? prepareReadingText(restored.text) : restored.text), session.index, session.elapsedMs); setView('reader')
     } catch { setLibraryStatus('The saved reading could not be restored on this device.') }
     setShowResume(false)
   }
