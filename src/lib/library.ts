@@ -1,4 +1,4 @@
-import type { DocumentMark, DocumentRecord, ReadingRecord, Session } from '../types'
+import type { AssessmentRecord, DocumentMark, DocumentRecord, ReadingRecord, Session } from '../types'
 import { readSession, writeLocal } from './storage'
 
 const DATABASE = 'focusread-library'
@@ -6,17 +6,19 @@ const DOCUMENTS = 'documents'
 const DRAFTS = 'drafts'
 const SESSIONS = 'sessions'
 const MARKS = 'marks'
+const ASSESSMENTS = 'assessments'
 let databasePromise: Promise<IDBDatabase> | null = null
 
 function openDatabase(): Promise<IDBDatabase> {
   if (!databasePromise) databasePromise = new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DATABASE, 3)
+    const request = indexedDB.open(DATABASE, 4)
     request.onupgradeneeded = () => {
       const database = request.result
       if (!database.objectStoreNames.contains(DOCUMENTS)) database.createObjectStore(DOCUMENTS, { keyPath: 'id' })
       if (!database.objectStoreNames.contains(DRAFTS)) database.createObjectStore(DRAFTS, { keyPath: 'id' })
       if (!database.objectStoreNames.contains(SESSIONS)) database.createObjectStore(SESSIONS, { keyPath: 'id' })
       if (!database.objectStoreNames.contains(MARKS)) database.createObjectStore(MARKS, { keyPath: 'id' })
+      if (!database.objectStoreNames.contains(ASSESSMENTS)) database.createObjectStore(ASSESSMENTS, { keyPath: 'id' })
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error ?? new Error('Could not open local library'))
@@ -60,6 +62,8 @@ export const listMarks = (documentId: string, sourceHash: string) => transact<Do
 })
 export const putMark = (mark: DocumentMark) => transact<void>(MARKS, 'readwrite', store => { store.put(mark) })
 export const deleteMark = (id: string) => transact<void>(MARKS, 'readwrite', store => { store.delete(id) })
+export const listAssessments = () => transact<AssessmentRecord[]>(ASSESSMENTS, 'readonly', (store, setResult) => { const request = store.getAll(); request.onsuccess = () => setResult(request.result as AssessmentRecord[]) })
+export const putAssessment = (record: AssessmentRecord) => transact<void>(ASSESSMENTS, 'readwrite', store => { store.put(record) })
 export function isReading(value: unknown): value is ReadingRecord {
   if (!value || typeof value !== 'object') return false
   const r = value as Record<string, unknown>

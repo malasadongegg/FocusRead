@@ -26,7 +26,7 @@ import { calibrationPassages } from './lib/calibration'
 import { matchingSample } from './lib/assessment'
 import { documentFingerprint } from './lib/documentFingerprint'
 import { readPreferences, readSession, writeLocal } from './lib/storage'
-import { clearReadings, deleteDocument, deleteMark, getDocument, getDraft, listDocuments, listMarks, listReadings, migrateLegacyLibrary, putDocument, putDocuments, putDraft, putMark, putReadings } from './lib/library'
+import { clearReadings, deleteDocument, deleteMark, getDocument, getDraft, listDocuments, listMarks, listReadings, migrateLegacyLibrary, putAssessment, putDocument, putDocuments, putDraft, putMark, putReadings } from './lib/library'
 import { createLibraryBackup, mergeDocuments, parseBackupReadings, parseLibraryBackup } from './lib/libraryBackup'
 import type { AudioProfile, DocumentMark, DocumentRecord, Mode, PracticeGoal, Preferences, ReadingRecord, Session } from './types'
 
@@ -172,6 +172,12 @@ export default function App() {
     const mark: DocumentMark = { id: newId(), documentId: sessionDocumentId, sourceHash, index: playback.index, kind: 'annotation', label: tokens[playback.index]?.text ?? `Word ${playback.index + 1}`, note: note.slice(0, 2000), createdAt: Date.now() }
     try { await putMark(mark); setMarks(previous => [...previous, mark].sort((a, b) => a.index - b.index)) } catch { setLibraryStatus('Could not save annotation.') }
   }
+  const saveAssessment = async (correct: number, total: number) => {
+    const passage = matchingSample(text)
+    if (!passage) return
+    try { await putAssessment({ id: newId(), documentId: sessionDocumentId, passageId: passage.id, selectedWpm: settings.wpm, correct, total, completedAt: Date.now() }) }
+    catch { setLibraryStatus('Could not save quiz result on this device.') }
+  }
   const removeMark = async (id: string) => { try { await deleteMark(id); setMarks(previous => previous.filter(mark => mark.id !== id)) } catch { setLibraryStatus('Could not remove bookmark.') } }
   const exportLibrary = async () => {
     try {
@@ -251,6 +257,6 @@ export default function App() {
     {view === 'reader' && !focusMode && <ReadingMarks marks={marks} index={playback.index} onSave={() => { void saveBookmark() }} onAnnotate={note => { void saveAnnotation(note) }} onSeek={index => engine.seek(index)} onDelete={id => { void removeMark(id) }}/>}
     <footer className="site-footer"><span>© 2026 FocusRead. Made for the moments that matter.</span><span>{dark ? <Moon size={13}/> : <Sun size={13}/>} {dark ? 'Dark' : 'Light'} mode <span className="footer-divider">·</span> No accounts. No distractions.</span></footer>
     {showCalibration && <Calibration onClose={() => setShowCalibration(false)} onApply={wpm => patchSettings({ wpm })}/>}
-    {savedNotice && <div className="toast"><Check size={17}/> Saved on this device</div>}{showComprehension && (matchingSample(text) ? <SampleQuiz passage={matchingSample(text)!} onClose={() => setShowComprehension(false)} onResult={() => {}}/> : <ComprehensionCheck onClose={() => setShowComprehension(false)}/ >)}{showPractice && <Practice wordCount={tokens.length} onStart={goal => { void startPractice(goal) }} onClose={() => setShowPractice(false)}/ >}{showStats && <Stats records={readings} goal={settings.dailyGoalWords} onGoal={dailyGoalWords => patchSettings({ dailyGoalWords })} onClear={() => { void clearReadings().then(() => setReadings([])).catch(() => setLibraryStatus('Could not clear reading history.')) }} onClose={() => setShowStats(false)}/>}{showSettings && <Settings settings={settings} onChange={patchSettings} onClose={() => setShowSettings(false)}/ >}
+    {savedNotice && <div className="toast"><Check size={17}/> Saved on this device</div>}{showComprehension && (matchingSample(text) ? <SampleQuiz passage={matchingSample(text)!} onClose={() => setShowComprehension(false)} onResult={(correct, total) => { void saveAssessment(correct, total) }}/> : <ComprehensionCheck onClose={() => setShowComprehension(false)}/ >)}{showPractice && <Practice wordCount={tokens.length} onStart={goal => { void startPractice(goal) }} onClose={() => setShowPractice(false)}/ >}{showStats && <Stats records={readings} goal={settings.dailyGoalWords} onGoal={dailyGoalWords => patchSettings({ dailyGoalWords })} onClear={() => { void clearReadings().then(() => setReadings([])).catch(() => setLibraryStatus('Could not clear reading history.')) }} onClose={() => setShowStats(false)}/>}{showSettings && <Settings settings={settings} onChange={patchSettings} onClose={() => setShowSettings(false)}/ >}
   </div>
 }
