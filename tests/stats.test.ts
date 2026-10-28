@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { PlaybackEngine, type PlaybackState } from '../src/lib/playbackEngine'
 import { closeLibrary, clearReadings, listReadings, putReadings } from '../src/lib/library'
 import { createLibraryBackup, parseBackupReadings, parseLibraryBackup } from '../src/lib/libraryBackup'
-import { ReadingTracker, dayKey, summarize } from '../src/lib/stats'
+import { ReadingTracker, compareRecentWeeks, dayKey, summarize } from '../src/lib/stats'
 import { tokenize } from '../src/lib/tokenizer'
 import { defaults } from '../src/lib/defaults'
 import type { ReadingRecord } from '../src/types'
@@ -66,6 +66,12 @@ describe('summarize', () => {
     expect(summarize([], 1000, now)).toMatchObject({ streak: 0, averageWpm: 0 })
   })
   it('dayKey uses the local calendar day', () => { expect(dayKey(new Date(2026, 0, 5, 23, 59).getTime())).toBe('2026-01-05') })
+  it('compares observed sessions in adjacent windows and only counts known completions', () => {
+    const now = Date.parse('2026-10-28T12:00:00')
+    const recent = { ...rec('2026-10-27', 120), completed: true }
+    const previous = { ...rec('2026-10-18', 80), completed: undefined }
+    expect(compareRecentWeeks([recent, previous], now)).toMatchObject({ recent: { words: 120, sessions: 1, completed: 1 }, previous: { words: 80, sessions: 1, completed: 0 } })
+  })
   it('resets the weekly goal on Monday and groups by the current local calendar day', () => {
     const monday = new Date(2026, 9, 26, 12).getTime()
     const sunday = rec('2026-10-25', 500)

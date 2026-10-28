@@ -11,6 +11,7 @@ export class ReadingTracker {
   private prev: PlaybackState | null = null
   private prevAt = 0
   private startedAt = 0
+  private completed = false
   constructor(private now: () => number = () => performance.now(), private wall: () => number = () => Date.now()) {}
   feed(state: PlaybackState, step: number, totalWords = 0) {
     const at = this.now()
@@ -21,14 +22,16 @@ export class ReadingTracker {
       if (state.complete && totalWords > 0) this.words += Math.min(step, totalWords - state.index)
     }
     if (state.playing && !this.prev?.playing && !this.startedAt) this.startedAt = this.wall()
+    if (state.complete) this.completed = true
     this.prev = state; this.prevAt = at
   }
   /** Returns the accumulated reading if it is substantial enough to keep, then resets. */
   take(documentId: string, title: string): ReadingRecord | null {
     const words = this.words, activeMs = Math.round(this.ms), startedAt = this.startedAt || this.wall()
-    this.words = 0; this.ms = 0; this.startedAt = 0
+    const completed = this.completed
+    this.words = 0; this.ms = 0; this.startedAt = 0; this.completed = false
     if (words < MIN_WORDS || activeMs < MIN_MS) return null
-    return { id: `${startedAt}-${Math.random().toString(36).slice(2, 8)}`, documentId, title, day: dayKey(startedAt), startedAt, words, activeMs }
+    return { id: `${startedAt}-${Math.random().toString(36).slice(2, 8)}`, documentId, title, day: dayKey(startedAt), startedAt, words, activeMs, completed }
   }
 }
 
@@ -61,4 +64,13 @@ export function summarize(records: ReadingRecord[], goal: number, now = Date.now
     goalProgress: Math.min(1, todayWords / target),
     week: Array.from({ length: 7 }, (_, i) => { const day = dayKey(shiftDay(now, i - 6)); return { day, words: byDay.get(day) ?? 0 } }),
   }
+}
+
+export function compareRecentWeeks(records: ReadingRecord[], now = Date.now()) {
+  const recentStart = now - 7 * 86400000
+  const previousStart = now - 14 * 86400000
+  const recent = records.filter(record => record.startedAt >= recentStart && record.startedAt <= now)
+  const previous = records.filter(record => record.startedAt >= previousStart && record.startedAt < recentStart)
+  const total = (items: ReadingRecord[]) => ({ words: items.reduce((sum, item) => sum + item.words, 0), minutes: Math.round(items.reduce((sum, item) => sum + item.activeMs, 0) / 60000), sessions: items.length, completed: items.filter(item => item.completed === true).length })
+  return { recent: total(recent), previous: total(previous) }
 }

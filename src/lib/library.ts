@@ -67,7 +67,7 @@ export const putAssessment = (record: AssessmentRecord) => transact<void>(ASSESS
 export function isReading(value: unknown): value is ReadingRecord {
   if (!value || typeof value !== 'object') return false
   const r = value as Record<string, unknown>
-  return typeof r.id === 'string' && r.id.length > 0 && typeof r.documentId === 'string' && typeof r.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.day) && typeof r.title === 'string' && [r.startedAt, r.words, r.activeMs].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0)
+  return typeof r.id === 'string' && r.id.length > 0 && typeof r.documentId === 'string' && typeof r.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.day) && typeof r.title === 'string' && (r.completed === undefined || typeof r.completed === 'boolean') && [r.startedAt, r.words, r.activeMs].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0)
 }
 
 export interface DraftRecord { id: 'current'; title: string; text: string; updatedAt: number }
