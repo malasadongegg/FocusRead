@@ -147,3 +147,13 @@ test('reading showcase and mobile menu work from the keyboard', async ({ page })
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: 'Open menu' })).toBeVisible()
 })
+
+test('imports local EPUB and PDF files in the workspace', async ({ page }) => {
+  await page.goto('/app')
+  const file = page.locator('input[type="file"][accept*=".epub"]')
+  await file.setInputFiles('tests/fixtures/sample.epub')
+  await expect(page.getByLabel('Reading text')).toContainText('Earlier chapter.')
+  await file.setInputFiles('tests/fixtures/sample.pdf')
+  await expect(page.getByLabel('Reading text')).toContainText('searchable text for local extraction')
+  await expect(page.getByText(/PDF text extraction may change/)).toBeVisible()
+})
