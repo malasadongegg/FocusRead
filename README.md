@@ -29,7 +29,7 @@ The built app can be installed as a PWA. After its first successful online load 
 
 ## Library backup
 
-Use **Export library** in the Saved documents panel to download a versioned JSON backup. Use **Import backup** to restore it on this or another device. An import merges by document ID and keeps the newer copy. Reading material is read and written inside the browser; it is never uploaded. Exported backups contain the full saved document text, so store them where you trust. Clearing site storage can erase the local library, and it does not synchronize automatically between devices.
+Use **Export library** in the Saved documents panel to download a versioned JSON backup. Use **Import backup** to restore it on this or another device. An import merges by document ID and keeps the newer copy. Backups include saved documents, the current draft, bookmarks, annotations, reading history, and sample quiz results. They contain full reading text and notes, so store them where you trust. Named reading profiles have separate import/export controls. Reading material is read and written inside the browser; it is never uploaded. Clearing site storage can erase the local library, and it does not synchronize automatically between devices.
 
 Existing FocusRead libraries from the original LocalStorage version are migrated to IndexedDB on first load. The original LocalStorage document array is removed only after a successful migration.
 
@@ -48,6 +48,12 @@ Open the deployed site while online, let it finish loading, then use your browse
 `npm run build` produces the deployable `dist/` directory. Use `npm run preview` to verify those exact production files locally before pushing or deploying. The app contains no production `localhost` references or external asset URLs.
 
 ## Reading
+
+The editor imports TXT, Markdown, EPUB, and searchable PDF files locally. EPUB chapters follow the book's spine order. PDF text extraction can change the intended reading order, and scanned pages without extractable text need OCR elsewhere. The optional display-cleanup switch removes Markdown heading marks and normalizes whitespace only in the reading copy; the saved source stays unchanged.
+
+**Calibrate pace** runs a short timed sample with two curated recall questions and suggests a conservative starting WPM. This is an exercise, not a validated measurement of reading ability. A completed bundled sample passage offers an optional scored quiz; other documents keep the private, unscored self-check. The dashboard labels quiz-time WPM as the selected setting, not observed speed. Its text difficulty label is a simple estimate from sentence length and words of nine or more letters.
+
+Bookmarks, word highlights, and notes are saved in IndexedDB with a fingerprint of the document revision so edits do not silently move them to unrelated text. Optional focus sessions provide a configurable work timer and break timer; the reader pauses at the work deadline and does not restart automatically. Daily and weekly goals use local calendar dates, and historical comparisons report only stored reading sessions. Named reading profiles save WPM, mode, typography, pacing, and audio preferences in LocalStorage.
 
 Paste text or import a `.txt` / `.md` file, set 100–1500 WPM, and choose **Start reading**. The player begins paused. Press Play or Space to advance automatically. Use the progress slider to seek. Switching RSVP, 2–5 word chunks, or traditional reading keeps your word position. Chunks consume one `60,000 / WPM` interval per word, so WPM always means total words per minute.
 

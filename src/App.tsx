@@ -29,8 +29,8 @@ import { matchingSample } from './lib/assessment'
 import { documentFingerprint } from './lib/documentFingerprint'
 import { prepareReadingText } from './lib/preprocess'
 import { readPreferences, readSession, writeLocal } from './lib/storage'
-import { clearReadings, deleteDocument, deleteMark, getDocument, getDraft, listDocuments, listMarks, listReadings, migrateLegacyLibrary, putAssessment, putDocument, putDocuments, putDraft, putMark, putReadings } from './lib/library'
-import { createLibraryBackup, mergeDocuments, parseBackupReadings, parseLibraryBackup } from './lib/libraryBackup'
+import { clearReadings, deleteDocument, deleteMark, getDocument, getDraft, listAllMarks, listAssessments, listDocuments, listMarks, listReadings, migrateLegacyLibrary, putAssessment, putAssessments, putDocument, putDocuments, putDraft, putMark, putMarks, putReadings } from './lib/library'
+import { createLibraryBackup, mergeDocuments, parseBackupAssessments, parseBackupDraft, parseBackupMarks, parseBackupReadings, parseLibraryBackup } from './lib/libraryBackup'
 import type { AudioProfile, DocumentMark, DocumentRecord, Mode, PracticeGoal, Preferences, ReadingRecord, Session } from './types'
 
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
@@ -181,13 +181,12 @@ export default function App() {
   const saveAssessment = async (correct: number, total: number) => {
     const passage = matchingSample(text)
     if (!passage) return
-    try { await putAssessment({ id: newId(), documentId: sessionDocumentId, passageId: passage.id, selectedWpm: settings.wpm, correct, total, completedAt: Date.now() }) }
-    catch { setLibraryStatus('Could not save quiz result on this device.') }
+    await putAssessment({ id: newId(), documentId: sessionDocumentId, passageId: passage.id, selectedWpm: settings.wpm, correct, total, completedAt: Date.now() })
   }
   const removeMark = async (id: string) => { try { await deleteMark(id); setMarks(previous => previous.filter(mark => mark.id !== id)) } catch { setLibraryStatus('Could not remove bookmark.') } }
   const exportLibrary = async () => {
     try {
-      const source = createLibraryBackup(await listDocuments(), await listReadings())
+      const source = createLibraryBackup(await listDocuments(), await listReadings(), await listAllMarks(), await listAssessments(), await getDraft())
       const url = URL.createObjectURL(new Blob([source], { type: 'application/json' }))
       const link = document.createElement('a')
       link.href = url; link.download = `focusread-library-${new Date().toISOString().slice(0, 10)}.json`
@@ -199,12 +198,19 @@ export default function App() {
   const importBackup = async (file: File) => {
     try {
       if (file.size > 100 * 1024 * 1024) throw new Error('The backup is too large to import.')
-      const imported = parseLibraryBackup(await file.text())
+      const source = await file.text()
+      const imported = parseLibraryBackup(source)
       const merged = mergeDocuments(await listDocuments(), imported)
-      const text = await file.text()
-      const importedReadings = parseBackupReadings(text)
+      const importedReadings = parseBackupReadings(source)
+      const importedMarks = parseBackupMarks(source)
+      const importedAssessments = parseBackupAssessments(source)
+      const importedDraft = parseBackupDraft(source)
       await putDocuments(merged)
       if (importedReadings.length) { await putReadings(importedReadings); setReadings(await listReadings()) }
+      if (importedMarks.length) await putMarks(importedMarks)
+      if (importedAssessments.length) await putAssessments(importedAssessments)
+      const localDraft = await getDraft()
+      if (importedDraft && (!localDraft || importedDraft.updatedAt > localDraft.updatedAt)) await putDraft(importedDraft)
       setDocuments(merged); setLibraryStatus(`Imported ${imported.length} document${imported.length === 1 ? '' : 's'}.`)
     } catch (error) { setLibraryStatus(error instanceof Error ? error.message : 'Could not import the backup.') }
   }
@@ -265,6 +271,6 @@ export default function App() {
     <footer className="site-footer"><span>© 2026 FocusRead. Made for the moments that matter.</span><span>{dark ? <Moon size={13}/> : <Sun size={13}/>} {dark ? 'Dark' : 'Light'} mode <span className="footer-divider">·</span> No accounts. No distractions.</span></footer>
     {showCalibration && <Calibration onClose={() => setShowCalibration(false)} onApply={wpm => patchSettings({ wpm })}/>}
     {showProfiles && <ReadingProfiles settings={settings} onApply={patchSettings} onClose={() => setShowProfiles(false)}/>}
-    {savedNotice && <div className="toast"><Check size={17}/> Saved on this device</div>}{showComprehension && (matchingSample(text) ? <SampleQuiz passage={matchingSample(text)!} onClose={() => setShowComprehension(false)} onResult={(correct, total) => { void saveAssessment(correct, total) }}/> : <ComprehensionCheck onClose={() => setShowComprehension(false)}/ >)}{showPractice && <Practice wordCount={tokens.length} onStart={goal => { void startPractice(goal) }} onClose={() => setShowPractice(false)}/ >}{showStats && <Stats records={readings} goal={settings.dailyGoalWords} onGoal={dailyGoalWords => patchSettings({ dailyGoalWords })} onClear={() => { void clearReadings().then(() => setReadings([])).catch(() => setLibraryStatus('Could not clear reading history.')) }} onClose={() => setShowStats(false)}/>}{showSettings && <Settings settings={settings} onChange={patchSettings} onClose={() => setShowSettings(false)}/ >}
+    {savedNotice && <div className="toast"><Check size={17}/> Saved on this device</div>}{showComprehension && (matchingSample(text) && playback.complete ? <SampleQuiz passage={matchingSample(text)!} onClose={() => setShowComprehension(false)} onResult={(correct, total) => saveAssessment(correct, total)}/> : <ComprehensionCheck onClose={() => setShowComprehension(false)}/ >)}{showPractice && <Practice wordCount={tokens.length} onStart={goal => { void startPractice(goal) }} onClose={() => setShowPractice(false)}/ >}{showStats && <Stats records={readings} goal={settings.dailyGoalWords} onGoal={dailyGoalWords => patchSettings({ dailyGoalWords })} onClear={() => { void clearReadings().then(() => setReadings([])).catch(() => setLibraryStatus('Could not clear reading history.')) }} onClose={() => setShowStats(false)}/>}{showSettings && <Settings settings={settings} onChange={patchSettings} onClose={() => setShowSettings(false)}/ >}
   </div>
 }

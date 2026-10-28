@@ -63,8 +63,21 @@ export const listMarks = (documentId: string, sourceHash: string) => transact<Do
 })
 export const putMark = (mark: DocumentMark) => transact<void>(MARKS, 'readwrite', store => { store.put(mark) })
 export const deleteMark = (id: string) => transact<void>(MARKS, 'readwrite', store => { store.delete(id) })
+export const listAllMarks = () => transact<DocumentMark[]>(MARKS, 'readonly', (store, setResult) => { const request = store.getAll(); request.onsuccess = () => setResult(request.result as DocumentMark[]) })
+export const putMarks = (marks: DocumentMark[]) => transact<void>(MARKS, 'readwrite', store => { marks.forEach(mark => store.put(mark)) })
 export const listAssessments = () => transact<AssessmentRecord[]>(ASSESSMENTS, 'readonly', (store, setResult) => { const request = store.getAll(); request.onsuccess = () => setResult(request.result as AssessmentRecord[]) })
 export const putAssessment = (record: AssessmentRecord) => transact<void>(ASSESSMENTS, 'readwrite', store => { store.put(record) })
+export const putAssessments = (records: AssessmentRecord[]) => transact<void>(ASSESSMENTS, 'readwrite', store => { records.forEach(record => store.put(record)) })
+export function isMark(value: unknown): value is DocumentMark {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Record<string, unknown>
+  return typeof item.id === 'string' && typeof item.documentId === 'string' && typeof item.sourceHash === 'string' && typeof item.index === 'number' && Number.isInteger(item.index) && item.index >= 0 && (item.kind === 'bookmark' || item.kind === 'annotation') && typeof item.label === 'string' && (item.note === undefined || typeof item.note === 'string') && typeof item.createdAt === 'number' && Number.isFinite(item.createdAt)
+}
+export function isAssessment(value: unknown): value is AssessmentRecord {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Record<string, unknown>
+  return typeof item.id === 'string' && typeof item.documentId === 'string' && typeof item.passageId === 'string' && [item.selectedWpm, item.correct, item.total, item.completedAt].every(number => typeof number === 'number' && Number.isFinite(number) && number >= 0) && (item.correct as number) <= (item.total as number)
+}
 export function isReading(value: unknown): value is ReadingRecord {
   if (!value || typeof value !== 'object') return false
   const r = value as Record<string, unknown>
