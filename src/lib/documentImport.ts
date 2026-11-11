@@ -44,7 +44,7 @@ export function extractEpub(bytes: Uint8Array): string {
   return sections.join('\n\n\n')
 }
 
-export async function importDocument(file: File): Promise<ImportedText> {
+export async function importDocument(file: File, onProgress?: (done: number, total: number) => void): Promise<ImportedText> {
   if (file.size > MAX_BYTES) throw new Error('File exceeds the 30 MB import limit.')
   const extension = file.name.split('.').pop()?.toLowerCase()
   const title = file.name.replace(/\.[^.]+$/u, '')
@@ -63,6 +63,7 @@ export async function importDocument(file: File): Promise<ImportedText> {
         let text = ''
         for (const item of content.items) if ('str' in item) text += item.str + (item.hasEOL ? '\n' : ' ')
         pages.push(text.trim())
+        onProgress?.(number, document.numPages)
       }
     } finally { await document.destroy() }
     const text = pages.filter(Boolean).join('\n\n')
