@@ -25,3 +25,4 @@
 
 .resume-toast button{background:none;border:0;color:var(--accent);font-weight:700;cursor:pointer;min-height:32px}
 .outline-list{list-style:none;padding:0;margin:0}.outline-list button{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:11px 0;color:var(--text);font-size:13px;font-weight:700;cursor:pointer;min-height:44px}.outline-list button[aria-current=true]{color:var(--accent)}.outline-list small{display:block;color:var(--muted);font-weight:500;margin-top:3px}
+.library-filter{display:flex;gap:8px;margin:10px 0}.library-filter input,.library-filter select{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;font-size:12px;min-height:40px}.library-filter input{flex:1;min-width:0}
