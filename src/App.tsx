@@ -27,6 +27,7 @@ import { defaults } from './lib/defaults'
 import { calibrationPassages } from './lib/calibration'
 import { matchingSample } from './lib/assessment'
 import { documentFingerprint } from './lib/documentFingerprint'
+import { forgetPosition, positionPercent, resumablePosition, savePosition } from './lib/positions'
 import { prepareReadingText } from './lib/preprocess'
 import { readPreferences, readSession, writeLocal } from './lib/storage'
 import { clearReadings, deleteDocument, deleteMark, getDocument, getDraft, listAllMarks, listAssessments, listDocuments, listMarks, listReadings, migrateLegacyLibrary, putAssessment, putAssessments, putDocument, putDocuments, putDraft, putMark, putMarks, putReadings } from './lib/library'
@@ -57,6 +58,7 @@ export default function App() {
   const [readings, setReadings] = useState<ReadingRecord[]>([])
   const [showResume, setShowResume] = useState(() => { const session = readSession(); return Boolean(session && !session.complete) })
   const [savedNotice, setSavedNotice] = useState(false)
+  const [resumeNotice, setResumeNotice] = useState<number | null>(null)
   const [systemDark, setSystemDark] = useState(() => !matchMedia('(prefers-color-scheme: light)').matches)
   const [playback, setPlayback] = useState<PlaybackState>({ index: 0, playing: false, complete: false, elapsedMs: 0 })
   const [audioReady, setAudioReady] = useState(false)
@@ -104,6 +106,8 @@ export default function App() {
     void migrateLegacyLibrary().then(listDocuments).then(items => { if (!cancelled) setDocuments(items) }).catch(() => { if (!cancelled) setLibraryStatus('Local library is unavailable in this browser.') })
     return () => { cancelled = true }
   }, [])
+  useEffect(() => { if (view !== 'reader' || sessionDocumentId === 'draft') return; if (playback.complete) forgetPosition(sessionDocumentId); else savePosition(sessionDocumentId, { hash: sourceHash, index: playback.index, total: tokens.length, updatedAt: Date.now() }) }, [view, sessionDocumentId, sourceHash, tokens.length, playback.index, playback.complete])
+  useEffect(() => { if (resumeNotice === null) return; const timer = setTimeout(() => setResumeNotice(null), 6000); return () => clearTimeout(timer) }, [resumeNotice])
   useEffect(() => { if (view === 'reader') writeLocal('session', { documentId: sessionDocumentId, index: playback.index, elapsedMs: playback.elapsedMs, updatedAt: Date.now(), complete: playback.complete } satisfies Session) }, [view, sessionDocumentId, playback.index, playback.elapsedMs, playback.complete])
   useEffect(() => { if (view !== 'reader') return; let live = true; void listMarks(sessionDocumentId, sourceHash).then(items => { if (live) setMarks(items) }).catch(() => { if (live) setLibraryStatus('Bookmarks are unavailable in this browser.') }); return () => { live = false } }, [view, sessionDocumentId, sourceHash])
   useEffect(() => { const query = matchMedia('(prefers-color-scheme: light)'); const change = () => setSystemDark(!query.matches); query.addEventListener('change', change); return () => query.removeEventListener('change', change) }, [])
@@ -138,12 +142,14 @@ export default function App() {
     setPractice(null); setPracticeFinished(null)
     const stored = documents.find(item => item.id === documentId)
     const useSaved = stored?.text === text && stored.title === (title.trim() || 'Untitled document')
+    const saved = useSaved && stored ? resumablePosition(stored.id, sourceHash, tokens.length) : null
     if (useSaved && stored) setSessionDocumentId(stored.id)
     else {
       try { await putDraft({ title, text, updatedAt: Date.now() }); setSessionDocumentId('draft') }
       catch { setLibraryStatus('Reading works, but this draft could not be saved for later.') }
     }
-    engine.load(tokens)
+    engine.load(tokens, saved?.index ?? 0)
+    setResumeNotice(saved ? positionPercent(saved) : null)
     completedReadingRef.current = null
     setView('reader'); setShowResume(false)
     if (settings.fullscreenPreference) void document.documentElement.requestFullscreen?.().catch(() => {})
@@ -169,7 +175,7 @@ export default function App() {
     setShowResume(false)
   }
   const removeDocument = async (id: string) => {
-    try { await deleteDocument(id); setDocuments(previous => previous.filter(item => item.id !== id)); if (documentId === id) setDocumentId(null); setLibraryStatus(null) }
+    try { await deleteDocument(id); forgetPosition(id); setDocuments(previous => previous.filter(item => item.id !== id)); if (documentId === id) setDocumentId(null); setLibraryStatus(null) }
     catch { setLibraryStatus('Could not delete this document.') }
   }
   const saveBookmark = async () => {
@@ -274,6 +280,6 @@ export default function App() {
     <footer className="site-footer"><span>© 2026 FocusRead. Made for the moments that matter.</span><span>{dark ? <Moon size={13}/> : <Sun size={13}/>} {dark ? 'Dark' : 'Light'} mode <span className="footer-divider">·</span> No accounts. No distractions.</span></footer>
     {showCalibration && <Calibration onClose={() => setShowCalibration(false)} onApply={wpm => patchSettings({ wpm })}/>}
     {showProfiles && <ReadingProfiles settings={settings} onApply={patchSettings} onClose={() => setShowProfiles(false)}/>}
-    {savedNotice && <div className="toast"><Check size={17}/> Saved on this device</div>}{showComprehension && (matchingSample(text) && playback.complete ? <SampleQuiz passage={matchingSample(text)!} onClose={() => setShowComprehension(false)} onResult={(correct, total) => saveAssessment(correct, total)}/> : <ComprehensionCheck onClose={() => setShowComprehension(false)}/ >)}{showPractice && <Practice wordCount={tokens.length} onStart={goal => { void startPractice(goal) }} onClose={() => setShowPractice(false)}/ >}{showStats && <Stats records={readings} goal={settings.dailyGoalWords} onGoal={dailyGoalWords => patchSettings({ dailyGoalWords })} onClear={() => { void clearReadings().then(() => setReadings([])).catch(() => setLibraryStatus('Could not clear reading history.')) }} onClose={() => setShowStats(false)}/>}{showSettings && <Settings settings={settings} onChange={patchSettings} onClose={() => setShowSettings(false)}/ >}
+    {savedNotice && <div className="toast"><Check size={17}/> Saved on this device</div>}{view === 'reader' && resumeNotice !== null && <div className="toast resume-toast" role="status">Resumed at {resumeNotice}%<button type="button" onClick={() => { engine.restart(); forgetPosition(sessionDocumentId); setResumeNotice(null) }}>Start over</button></div>}{showComprehension && (matchingSample(text) && playback.complete ? <SampleQuiz passage={matchingSample(text)!} onClose={() => setShowComprehension(false)} onResult={(correct, total) => saveAssessment(correct, total)}/> : <ComprehensionCheck onClose={() => setShowComprehension(false)}/ >)}{showPractice && <Practice wordCount={tokens.length} onStart={goal => { void startPractice(goal) }} onClose={() => setShowPractice(false)}/ >}{showStats && <Stats records={readings} goal={settings.dailyGoalWords} onGoal={dailyGoalWords => patchSettings({ dailyGoalWords })} onClear={() => { void clearReadings().then(() => setReadings([])).catch(() => setLibraryStatus('Could not clear reading history.')) }} onClose={() => setShowStats(false)}/>}{showSettings && <Settings settings={settings} onChange={patchSettings} onClose={() => setShowSettings(false)}/ >}
   </div>
 }
