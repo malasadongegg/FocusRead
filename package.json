@@ -11,6 +11,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource/atkinson-hyperlegible": "^5.2.5",
     "fflate": "^0.8.3",
     "lucide-react": "^0.468.0",
     "pdfjs-dist": "^4.10.38",
