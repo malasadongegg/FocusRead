@@ -1,6 +1,8 @@
 import type { Preferences, Token } from '../types'
 import { isSentenceEnd } from './preprocess'
 export const clampWpm = (value: number) => Number.isFinite(value) ? Math.min(1500, Math.max(100, Math.round(value))) : 300
+/** Arrow-key speed change: 10 WPM (1 with fine adjustment), or 50 while Shift is held. */
+export const keyboardWpm = (wpm: number, direction: 1 | -1, shift: boolean, fine: boolean) => clampWpm(wpm + direction * (shift ? 50 : fine ? 1 : 10))
 export const msPerWord = (wpm: number) => 60000 / clampWpm(wpm)
 /** Selected WPM is the target. Ramp starts at 65% and reaches it after rampUpWords.
  * Experimental adaptive mode spends more time on long words and less on short ones. */

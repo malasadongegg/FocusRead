@@ -33,3 +33,4 @@
 .doc-stats{display:block;color:var(--muted);font-size:10px;margin-top:2px}
 
 .ladder-stage{min-height:200px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--reader-bg)}
+.wpm-readout{left:50%;right:auto;transform:translateX(-50%);bottom:80px;font-weight:700;font-size:14px}

@@ -126,3 +126,14 @@ describe('rewind on pause', () => {
     engine.destroy()
   })
 })
+
+describe('keyboard speed', () => {
+  it('changes by 10, 1 when fine, or 50 with Shift, and stays within 100-1500', async () => {
+    const { keyboardWpm } = await import('../src/lib/readingTime')
+    expect(keyboardWpm(300, 1, false, false)).toBe(310)
+    expect(keyboardWpm(300, -1, false, true)).toBe(299)
+    expect(keyboardWpm(300, 1, true, false)).toBe(350)
+    expect(keyboardWpm(120, -1, true, false)).toBe(100)
+    expect(keyboardWpm(1480, 1, true, true)).toBe(1500)
+  })
+})
