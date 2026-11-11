@@ -91,3 +91,16 @@ export function heatmapWeeks(records: ReadingRecord[], goal: number, weeks = 26,
     return { day, words, future: day > today, level: (words <= 0 ? 0 : ratio < .25 ? 1 : ratio < .5 ? 2 : ratio < 1 ? 3 : 4) as HeatCell['level'] }
   }))
 }
+
+export interface DocumentStats { sessions: number; words: number; activeMs: number; wpm: number; completions: number }
+/** Reading history grouped by document. Average WPM is total words over total active time, not a mean of session speeds. */
+export function documentStats(records: ReadingRecord[]): Map<string, DocumentStats> {
+  const stats = new Map<string, DocumentStats>()
+  for (const r of records) {
+    const item = stats.get(r.documentId) ?? { sessions: 0, words: 0, activeMs: 0, wpm: 0, completions: 0 }
+    item.sessions++; item.words += r.words; item.activeMs += r.activeMs; if (r.completed === true) item.completions++
+    stats.set(r.documentId, item)
+  }
+  for (const item of stats.values()) item.wpm = item.activeMs > 0 ? Math.round(item.words / (item.activeMs / 60000)) : 0
+  return stats
+}

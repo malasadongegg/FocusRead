@@ -146,3 +146,14 @@ describe('reading calendar', () => {
     expect(weeks[0][0].day).toBe('2026-10-19')
   })
 })
+
+import { documentStats } from '../src/lib/stats'
+describe('per-document stats', () => {
+  it('groups history by document and weights WPM by active time', () => {
+    const r = (documentId: string, words: number, activeMs: number, completed?: boolean) => ({ id: `${Math.random()}`, documentId, title: 't', day: '2026-11-11', startedAt: 1, words, activeMs, completed })
+    const stats = documentStats([r('a', 300, 60000, true), r('a', 100, 60000), r('b', 50, 30000), r('a', 0, 0)])
+    expect(stats.get('a')).toEqual({ sessions: 3, words: 400, activeMs: 120000, wpm: 200, completions: 1 })
+    expect(stats.get('b')?.wpm).toBe(100)
+    expect(stats.get('missing')).toBeUndefined()
+  })
+})
