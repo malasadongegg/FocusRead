@@ -55,6 +55,10 @@ The editor imports TXT, Markdown, EPUB, and searchable PDF files locally. EPUB c
 
 Bookmarks, word highlights, and notes are saved in IndexedDB with a fingerprint of the document revision so edits do not silently move them to unrelated text. Optional focus sessions provide a configurable work timer and break timer; the reader pauses at the work deadline and does not restart automatically. Daily and weekly goals use local calendar dates, and historical comparisons report only stored reading sessions. Named reading profiles save WPM, mode, typography, pacing, and audio preferences in LocalStorage.
 
+Saved documents reopen at their last word (a **Start over** button undoes it; positions stay on this device and are not in backups). `[` replays the current sentence, `]` jumps to the next, `Shift` with the arrow keys does the same, and `?` lists all shortcuts. `Shift` with Up/Down changes speed by 50 WPM. Documents with Markdown headings or EPUB chapters offer a **Contents** panel. Optional extras: rewind on pause, a bundled Atkinson Hyperlegible font, the **Speed ladder** drill (distinct passages, stops at the first missed question), screen-reader announcements, and styles for system reduced-motion, high-contrast, and forced-colors settings.
+
+The library accepts dropped files, can be searched by title, tag, or text, and warns before saving duplicates. Each document shows its own reading stats, and the Progress page includes a reading calendar.
+
 Paste text or import a `.txt` / `.md` file, set 100–1500 WPM, and choose **Start reading**. The player begins paused. Press Play or Space to advance automatically. Use the progress slider to seek. Switching RSVP, 2–5 word chunks, or traditional reading keeps your word position. Chunks consume one `60,000 / WPM` interval per word, so WPM always means total words per minute.
 
 The focal letter uses the character at 40% of the letter span (after leading punctuation), clamped to a valid letter. A configurable offset shifts it. Three independently positioned segments keep that letter anchored at the exact center of the reading lane.
