@@ -94,7 +94,7 @@ export const getDraft = () => transact<DraftRecord | undefined>(DRAFTS, 'readonl
 export function isDocument(value: unknown): value is DocumentRecord {
   if (!value || typeof value !== 'object') return false
   const item = value as Record<string, unknown>
-  return typeof item.id === 'string' && item.id.length > 0 && typeof item.title === 'string' && typeof item.text === 'string' && typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt)
+  return typeof item.id === 'string' && item.id.length > 0 && typeof item.title === 'string' && typeof item.text === 'string' && typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt) && (item.tags === undefined || Array.isArray(item.tags) && item.tags.length <= 10 && item.tags.every(tag => typeof tag === 'string' && tag.length > 0 && tag.length <= 30))
 }
 
 /** One-time migration from the original LocalStorage library and text-bearing session. */

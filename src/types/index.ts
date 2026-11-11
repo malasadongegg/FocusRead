@@ -13,7 +13,7 @@ export interface Preferences {
   readerWidth: number; fullscreenPreference: boolean; reducedMotion: boolean; countdownSeconds: number; rewindOnPause: number; cleanFormatting: boolean;
   audioProfile: AudioProfile; audioVolume: number; audioMuted: boolean; audioPauseWithReading: boolean; audioTimerMinutes: number; dailyGoalWords: number; weeklyGoalWords: number;
 }
-export interface DocumentRecord { id: string; title: string; text: string; updatedAt: number }
+export interface DocumentRecord { id: string; title: string; text: string; updatedAt: number; tags?: string[] }
 export interface Session { documentId: string; index: number; elapsedMs: number; updatedAt: number; title?: string; text?: string; complete?: boolean }
 export interface ReadingRecord { id: string; documentId: string; title: string; day: string; startedAt: number; words: number; activeMs: number; completed?: boolean }
 export interface DocumentMark { id: string; documentId: string; sourceHash: string; index: number; kind: 'bookmark' | 'annotation'; label: string; note?: string; createdAt: number }
