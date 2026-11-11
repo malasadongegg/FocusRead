@@ -42,3 +42,12 @@ describe('document tags', () => {
     expect(isDocument({ ...docs[0], tags: Array(11).fill('x') })).toBe(false)
   })
 })
+import { findDuplicate } from '../src/lib/documentFingerprint'
+describe('duplicate detection', () => {
+  it('matches identical text only, and ignores the document being edited', () => {
+    expect(findDuplicate(docs, 'Mountains')?.id).toBe('b')
+    expect(findDuplicate(docs, 'Mountain')).toBeUndefined()
+    expect(findDuplicate(docs, 'Mountains', 'b')).toBeUndefined()
+    expect(findDuplicate(docs, '   ')).toBeUndefined()
+  })
+})

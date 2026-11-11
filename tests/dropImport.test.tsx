@@ -22,3 +22,12 @@ it('imports a dropped file and ignores drags that carry no files', async () => {
   expect(container.querySelector('.drop-hint')).toBeNull()
   expect(screen.queryByRole('status')).toBeNull()
 })
+
+it('offers the saved copy when an imported file duplicates a library document', async () => {
+  const onOpen = vi.fn()
+  const saved = { id: 'x', title: 'Notes', text: 'hello', updatedAt: 1 }
+  const { container } = render(<TextEditor {...props} documents={[saved]} onOpen={onOpen} onTitle={noop} onText={noop} onImportNotice={noop}/>)
+  fireEvent.drop(container.querySelector('.editor-card')!, { dataTransfer: { types: ['Files'], files: [{ name: 'again.txt', size: 5, text: async () => 'hello' } as File] } })
+  fireEvent.click(await screen.findByText('Open saved copy'))
+  expect(onOpen).toHaveBeenCalledWith(saved)
+})

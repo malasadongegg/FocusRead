@@ -27,7 +27,7 @@ import { defaults } from './lib/defaults'
 import { normalizeTags } from './lib/librarySearch'
 import { calibrationPassages } from './lib/calibration'
 import { matchingSample } from './lib/assessment'
-import { documentFingerprint } from './lib/documentFingerprint'
+import { documentFingerprint, findDuplicate } from './lib/documentFingerprint'
 import Outline from './components/Reader/Outline'
 import { buildOutline } from './lib/outline'
 import { nextSentenceStart, previousSentenceStart } from './lib/navigation'
@@ -135,6 +135,8 @@ export default function App() {
 
   const saveDocument = useCallback(async () => {
     if (!text.trim()) return
+    const existing = documentId ? undefined : findDuplicate(documents, text)
+    if (existing) { setDocumentId(existing.id); setTitle(existing.title); setTags((existing.tags ?? []).join(', ')); setLibraryStatus(`Already saved as “${existing.title}”. Opened that copy instead of adding a duplicate.`); return }
     const id = documentId ?? newId()
     const record: DocumentRecord = { id, title: title.trim() || 'Untitled document', text, updatedAt: Date.now(), tags: normalizeTags(tags) }
     try {
@@ -143,7 +145,7 @@ export default function App() {
       setDocuments(previous => [record, ...previous.filter(item => item.id !== id)])
       setLibraryStatus(null); setSavedNotice(true); setTimeout(() => setSavedNotice(false), 2200)
     } catch { setLibraryStatus('Could not save this document on this device.') }
-  }, [documentId, text, title, tags])
+  }, [documentId, documents, text, title, tags])
   const startReading = async () => {
     if (!tokens.length) return
     setPractice(null); setPracticeFinished(null)
