@@ -82,6 +82,8 @@ export class PlaybackEngine {
     if (this.state.playing) { this.deadline = this.clock.now() + this.remaining; this.schedule() }
     this.emit()
   }
+  /** Steps back a few words while paused so the reader regains context on resume. */
+  rewind(words: number) { if (!this.state.playing && words > 0 && this.state.index > 0) this.seek(this.state.index - Math.floor(words)) }
   skip(direction: number) { this.seek(this.state.index + direction * this.stepSize()) }
   restart() {
     if (!this.tokens.length) return

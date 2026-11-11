@@ -10,7 +10,7 @@ export interface Preferences {
   fontFamily: string; fontSize: number; fontWeight: number; textColor: string; accentColor: string; backgroundColor: string;
   orpEnabled: boolean; orpOffset: number; focalScale: number; verticalGuide: boolean; horizontalGuides: boolean;
   punctuation: boolean; commaPause: number; sentencePause: number; paragraphPause: number;
-  readerWidth: number; fullscreenPreference: boolean; reducedMotion: boolean; countdownSeconds: number; cleanFormatting: boolean;
+  readerWidth: number; fullscreenPreference: boolean; reducedMotion: boolean; countdownSeconds: number; rewindOnPause: number; cleanFormatting: boolean;
   audioProfile: AudioProfile; audioVolume: number; audioMuted: boolean; audioPauseWithReading: boolean; audioTimerMinutes: number; dailyGoalWords: number; weeklyGoalWords: number;
 }
 export interface DocumentRecord { id: string; title: string; text: string; updatedAt: number }

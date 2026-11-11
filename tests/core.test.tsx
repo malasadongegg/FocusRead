@@ -112,3 +112,17 @@ it('keyboard shortcuts play and advance; typing remains untouched', async () => 
   fireEvent.keyDown(screen.getByLabelText('Reading speed'), { key: 'ArrowRight' })
   expect(screen.getByText('WORD 2')).toBeInTheDocument()
 })
+describe('rewind on pause', () => {
+  it('steps back only while paused and never below the first word', () => {
+    const states: number[] = []
+    const engine = new PlaybackEngine({ ...defaults }, state => states.push(state.index), { now: () => Date.now(), set: (fn, delay) => setTimeout(fn, delay), clear: id => clearTimeout(id) })
+    engine.load(tokenize('one two three four five six seven eight nine ten'), 6)
+    engine.play(); engine.rewind(3)
+    expect(engine.snapshot().index).toBe(6)
+    engine.pause(); engine.rewind(3)
+    expect(engine.snapshot().index).toBe(3)
+    engine.rewind(10)
+    expect(engine.snapshot().index).toBe(0)
+    engine.destroy()
+  })
+})

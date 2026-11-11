@@ -85,7 +85,7 @@ export default function App() {
   const countdown = usePlaybackCountdown(() => engine.play())
   const togglePlayback = () => {
     if (countdown.remaining !== null) { countdown.cancel(); return }
-    if (playback.playing) engine.pause()
+    if (playback.playing) { engine.pause(); engine.rewind(settings.rewindOnPause) }
     else countdown.start(settings.countdownSeconds)
   }
   const patchSettings = useCallback((patch: Partial<Preferences>) => setSettings(previous => ({ ...previous, ...patch })), [])
