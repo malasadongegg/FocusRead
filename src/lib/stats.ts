@@ -77,3 +77,17 @@ export function compareRecentWeeks(records: ReadingRecord[], now = Date.now()) {
 export function observedWpm(record: ReadingRecord): number | undefined {
   return record.activeMs > 0 && record.words > 0 ? Math.round(record.words / (record.activeMs / 60000)) : undefined
 }
+
+export interface HeatCell { day: string; words: number; level: 0 | 1 | 2 | 3 | 4; future: boolean }
+/** Monday-first columns ending with the current week. Levels are relative to the daily goal: under a quarter, under half, under the goal, goal met. */
+export function heatmapWeeks(records: ReadingRecord[], goal: number, weeks = 26, now = Date.now()): HeatCell[][] {
+  const byDay = new Map<string, number>()
+  for (const r of records) { const key = dayKey(r.startedAt); byDay.set(key, (byDay.get(key) ?? 0) + r.words) }
+  const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - ((start.getDay() + 6) % 7) - (weeks - 1) * 7)
+  const target = Math.max(1, goal), today = dayKey(now)
+  return Array.from({ length: weeks }, (_, week) => Array.from({ length: 7 }, (_, weekday) => {
+    const date = new Date(start); date.setDate(start.getDate() + week * 7 + weekday)
+    const day = dayKey(date.getTime()), words = byDay.get(day) ?? 0, ratio = words / target
+    return { day, words, future: day > today, level: (words <= 0 ? 0 : ratio < .25 ? 1 : ratio < .5 ? 2 : ratio < 1 ? 3 : 4) as HeatCell['level'] }
+  }))
+}

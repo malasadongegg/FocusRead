@@ -126,3 +126,23 @@ describe('PlaybackEngine timing', () => {
     expect(job).toBeNull()
   })
 })
+
+import { heatmapWeeks } from '../src/lib/stats'
+describe('reading calendar', () => {
+  it('builds Monday-first week columns ending this week with goal-relative levels', () => {
+    const now = new Date(2026, 10, 11, 12).getTime() // Wednesday
+    const at = (day: number, words: number) => ({ id: `${day}`, documentId: 'd', title: 't', day: '', startedAt: new Date(2026, 10, day, 9).getTime(), words, activeMs: 60000 })
+    const weeks = heatmapWeeks([at(11, 1000), at(10, 300), at(9, 100), at(2, 600), at(9, 20)], 1000, 4, now)
+    expect(weeks).toHaveLength(4)
+    expect(weeks.every(week => week.length === 7)).toBe(true)
+    const flat = weeks.flat()
+    const cell = (day: string) => flat.find(item => item.day === day)!
+    expect(cell('2026-11-11')).toMatchObject({ words: 1000, level: 4, future: false })
+    expect(cell('2026-11-10').level).toBe(2)
+    expect(cell('2026-11-09')).toMatchObject({ words: 120, level: 1 })
+    expect(cell('2026-11-02').level).toBe(3)
+    expect(cell('2026-11-12').future).toBe(true)
+    expect(weeks[3][0].day).toBe('2026-11-09')
+    expect(weeks[0][0].day).toBe('2026-10-19')
+  })
+})
