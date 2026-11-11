@@ -18,7 +18,7 @@ export default defineConfig({
       ],
     },
     workbox: {
-      globPatterns: ['**/*.{html,js,css,webp,ico}'],
+      globPatterns: ['**/*.{html,js,mjs,css,webp,ico,woff2}'],
       navigateFallback: '/index.html',
       cleanupOutdatedCaches: true,
       clientsClaim: true,

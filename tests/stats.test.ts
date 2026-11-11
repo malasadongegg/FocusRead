@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { PlaybackEngine, type PlaybackState } from '../src/lib/playbackEngine'
 import { closeLibrary, clearReadings, listReadings, putReadings } from '../src/lib/library'
 import { createLibraryBackup, parseBackupReadings, parseLibraryBackup } from '../src/lib/libraryBackup'
-import { ReadingTracker, dayKey, summarize } from '../src/lib/stats'
+import { ReadingTracker, compareRecentWeeks, dayKey, observedWpm, summarize } from '../src/lib/stats'
 import { tokenize } from '../src/lib/tokenizer'
 import { defaults } from '../src/lib/defaults'
 import type { ReadingRecord } from '../src/types'
@@ -66,6 +66,24 @@ describe('summarize', () => {
     expect(summarize([], 1000, now)).toMatchObject({ streak: 0, averageWpm: 0 })
   })
   it('dayKey uses the local calendar day', () => { expect(dayKey(new Date(2026, 0, 5, 23, 59).getTime())).toBe('2026-01-05') })
+  it('derives observed WPM only from recorded words and active time', () => {
+    expect(observedWpm(rec('2026-10-26', 120, 60000))).toBe(120)
+    expect(observedWpm(rec('2026-10-26', 120, 0))).toBeUndefined()
+  })
+  it('compares observed sessions in adjacent windows and only counts known completions', () => {
+    const now = Date.parse('2026-10-28T12:00:00')
+    const recent = { ...rec('2026-10-27', 120), completed: true }
+    const previous = { ...rec('2026-10-18', 80), completed: undefined }
+    expect(compareRecentWeeks([recent, previous], now)).toMatchObject({ recent: { words: 120, sessions: 1, completed: 1 }, previous: { words: 80, sessions: 1, completed: 0 } })
+  })
+  it('resets the weekly goal on Monday and groups by the current local calendar day', () => {
+    const monday = new Date(2026, 9, 26, 12).getTime()
+    const sunday = rec('2026-10-25', 500)
+    const today = rec('2026-10-26', 200)
+    expect(summarize([sunday, today], 1000, monday, 1000)).toMatchObject({ currentWeekWords: 200, weeklyGoalProgress: .2 })
+    const movedZoneRecord = { ...today, day: '2026-10-25' }
+    expect(summarize([movedZoneRecord], 1000, monday).todayWords).toBe(200)
+  })
 })
 
 describe('reading history persistence and backup', () => {
@@ -106,5 +124,36 @@ describe('PlaybackEngine timing', () => {
     expect(last.index).toBeGreaterThanOrEqual(19); expect(last.index).toBeLessThanOrEqual(21)
     engine.destroy()
     expect(job).toBeNull()
+  })
+})
+
+import { heatmapWeeks } from '../src/lib/stats'
+describe('reading calendar', () => {
+  it('builds Monday-first week columns ending this week with goal-relative levels', () => {
+    const now = new Date(2026, 10, 11, 12).getTime() // Wednesday
+    const at = (day: number, words: number) => ({ id: `${day}`, documentId: 'd', title: 't', day: '', startedAt: new Date(2026, 10, day, 9).getTime(), words, activeMs: 60000 })
+    const weeks = heatmapWeeks([at(11, 1000), at(10, 300), at(9, 100), at(2, 600), at(9, 20)], 1000, 4, now)
+    expect(weeks).toHaveLength(4)
+    expect(weeks.every(week => week.length === 7)).toBe(true)
+    const flat = weeks.flat()
+    const cell = (day: string) => flat.find(item => item.day === day)!
+    expect(cell('2026-11-11')).toMatchObject({ words: 1000, level: 4, future: false })
+    expect(cell('2026-11-10').level).toBe(2)
+    expect(cell('2026-11-09')).toMatchObject({ words: 120, level: 1 })
+    expect(cell('2026-11-02').level).toBe(3)
+    expect(cell('2026-11-12').future).toBe(true)
+    expect(weeks[3][0].day).toBe('2026-11-09')
+    expect(weeks[0][0].day).toBe('2026-10-19')
+  })
+})
+
+import { documentStats } from '../src/lib/stats'
+describe('per-document stats', () => {
+  it('groups history by document and weights WPM by active time', () => {
+    const r = (documentId: string, words: number, activeMs: number, completed?: boolean) => ({ id: `${Math.random()}`, documentId, title: 't', day: '2026-11-11', startedAt: 1, words, activeMs, completed })
+    const stats = documentStats([r('a', 300, 60000, true), r('a', 100, 60000), r('b', 50, 30000), r('a', 0, 0)])
+    expect(stats.get('a')).toEqual({ sessions: 3, words: 400, activeMs: 120000, wpm: 200, completions: 1 })
+    expect(stats.get('b')?.wpm).toBe(100)
+    expect(stats.get('missing')).toBeUndefined()
   })
 })

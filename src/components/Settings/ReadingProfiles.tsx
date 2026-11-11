@@ -1,0 +1,18 @@
+import { useRef, useState } from 'react'
+import { X } from 'lucide-react'
+import type { Preferences } from '../../types'
+import { captureProfile, exportProfiles, importProfiles, readProfiles, saveProfiles, type ReadingProfile } from '../../lib/profiles'
+import { useModalFocus } from '../../hooks/useModalFocus'
+
+export default function ReadingProfiles({ settings, onApply, onClose }: { settings: Preferences; onApply: (settings: Partial<Preferences>) => void; onClose: () => void }) {
+  const dialogRef = useModalFocus(onClose)
+  const importRef = useRef<HTMLInputElement>(null)
+  const [profiles, setProfiles] = useState(readProfiles)
+  const [name, setName] = useState('')
+  const [message, setMessage] = useState('')
+  const update = (next: ReadingProfile[]) => { if (!saveProfiles(next)) { setMessage('Could not save profiles in this browser.'); return } setProfiles(next) }
+  const add = () => { const trimmed = name.trim(); if (!trimmed) return; update([...profiles, { id: crypto.randomUUID(), name: trimmed.slice(0, 80), settings: captureProfile(settings), createdAt: Date.now() }]); setName('') }
+  const download = () => { const url = URL.createObjectURL(new Blob([exportProfiles(profiles)], { type: 'application/json' })); const link = document.createElement('a'); link.href = url; link.download = 'focusread-profiles.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 30000) }
+  const upload = async (file?: File) => { if (!file) return; try { if (file.size > 1024 * 1024) throw new Error('Profile backup exceeds 1 MB.'); const incoming = importProfiles(await file.text()); const merged = new Map(profiles.map(item => [item.id, item])); incoming.forEach(item => merged.set(item.id, item)); update([...merged.values()]); setMessage(`Imported ${incoming.length} profile${incoming.length === 1 ? '' : 's'}.`) } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not import profiles.') } }
+  return <div className="settings-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><aside ref={dialogRef} className="settings-panel" role="dialog" aria-modal="true" aria-label="Reading profiles"><div className="settings-head"><div><div className="eyebrow">YOUR PRESETS</div><h2>Reading profiles</h2></div><button className="icon-button" aria-label="Close profiles" onClick={onClose}><X size={20}/></button></div><div className="settings-body"><p className="setting-note">Profiles store reading and audio preferences only. They do not contain document text.</p><form className="profile-create" onSubmit={event => { event.preventDefault(); add() }}><input aria-label="Profile name" value={name} onChange={event => setName(event.target.value)} placeholder="Name this setup" maxLength={80}/><button className="primary-button" disabled={!name.trim()}>Save current setup</button></form><ul className="profile-list">{profiles.map(profile => <li key={profile.id}><div><strong>{profile.name}</strong><small>{profile.settings.wpm} WPM · {profile.settings.mode}</small></div><button onClick={() => { onApply(profile.settings); setMessage(`Applied ${profile.name}.`) }}>Apply</button><button aria-label={`Delete profile ${profile.name}`} onClick={() => update(profiles.filter(item => item.id !== profile.id))}>Delete</button></li>)}</ul><div className="profile-actions"><button onClick={download} disabled={!profiles.length}>Export profiles</button><input ref={importRef} hidden type="file" accept=".json,application/json" onChange={event => { void upload(event.target.files?.[0]); event.target.value = '' }}/><button onClick={() => importRef.current?.click()}>Import profiles</button></div>{message && <p role="status">{message}</p>}</div></aside></div>
+}

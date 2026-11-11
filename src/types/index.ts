@@ -6,12 +6,15 @@ export interface PracticeGoal { wpm: number; minutes: number }
 export interface Token { text: string; start: number; end: number; paragraphBefore: boolean }
 export interface Preferences {
   wpm: number; fineSpeed: boolean; mode: Mode; chunkSize: number; theme: Theme; paceMode: PaceMode; rampUpWords: number;
+  adaptiveLength: boolean; adaptiveBoundaries: boolean;
   fontFamily: string; fontSize: number; fontWeight: number; textColor: string; accentColor: string; backgroundColor: string;
   orpEnabled: boolean; orpOffset: number; focalScale: number; verticalGuide: boolean; horizontalGuides: boolean;
   punctuation: boolean; commaPause: number; sentencePause: number; paragraphPause: number;
-  readerWidth: number; fullscreenPreference: boolean; reducedMotion: boolean; countdownSeconds: number;
-  audioProfile: AudioProfile; audioVolume: number; audioMuted: boolean; audioPauseWithReading: boolean; audioTimerMinutes: number; dailyGoalWords: number;
+  readerWidth: number; fullscreenPreference: boolean; reducedMotion: boolean; countdownSeconds: number; rewindOnPause: number; cleanFormatting: boolean;
+  audioProfile: AudioProfile; audioVolume: number; audioMuted: boolean; audioPauseWithReading: boolean; audioTimerMinutes: number; dailyGoalWords: number; weeklyGoalWords: number;
 }
-export interface DocumentRecord { id: string; title: string; text: string; updatedAt: number }
+export interface DocumentRecord { id: string; title: string; text: string; updatedAt: number; tags?: string[] }
 export interface Session { documentId: string; index: number; elapsedMs: number; updatedAt: number; title?: string; text?: string; complete?: boolean }
-export interface ReadingRecord { id: string; documentId: string; title: string; day: string; startedAt: number; words: number; activeMs: number }
+export interface ReadingRecord { id: string; documentId: string; title: string; day: string; startedAt: number; words: number; activeMs: number; completed?: boolean }
+export interface DocumentMark { id: string; documentId: string; sourceHash: string; index: number; kind: 'bookmark' | 'annotation'; label: string; note?: string; createdAt: number }
+export interface AssessmentRecord { id: string; documentId: string; passageId: string; selectedWpm: number; observedWpm?: number; readingId?: string; correct: number; total: number; completedAt: number }

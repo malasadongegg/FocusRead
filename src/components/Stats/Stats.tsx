@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import type { ReadingRecord } from '../../types'
 import { formatTime } from '../../lib/readingTime'
 import { summarize } from '../../lib/stats'
+import Heatmap from './Heatmap'
 import { useModalFocus } from '../../hooks/useModalFocus'
 
 type Props = { records: ReadingRecord[]; goal: number; onGoal: (goal: number) => void; onClear: () => void; onClose: () => void }
@@ -23,6 +24,8 @@ export default function Stats({ records, goal, onGoal, onClear, onClose }: Props
     <label className="setting-row">Words per day <b>{goal.toLocaleString()}</b><input type="range" min={100} max={20000} step={100} value={goal} onChange={e => onGoal(+e.target.value)}/></label>
     <h3>Last 7 days</h3>
     <div className="week-chart" role="img" aria-label="Words read per day over the last 7 days">{s.week.map(d => <div key={d.day} title={`${d.day}: ${d.words.toLocaleString()} words`}><span style={{ height: `${Math.max(d.words ? 6 : 2, d.words / peak * 100)}%` }}/><small>{d.day.slice(8)}</small></div>)}</div>
+    <h3>Reading calendar</h3>
+    <Heatmap records={records} goal={goal} weeks={14}/>
     <h3>Recent sessions</h3>
     {recent.length ? <ul className="session-list">{recent.map(r => <li key={r.id}><span>{r.title || 'Untitled document'}</span><small>{r.words.toLocaleString()} words · {Math.round(r.words / (r.activeMs / 60000))} WPM · {r.day}</small></li>)}</ul> : <p className="setting-note">Read for a few seconds and your sessions will appear here. They stay on this device.</p>}
     {records.length > 0 && <button className="clear-history" onClick={() => { if (confirm('Delete all reading history on this device?')) onClear() }}>Clear reading history</button>}

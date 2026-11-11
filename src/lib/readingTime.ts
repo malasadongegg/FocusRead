@@ -1,5 +1,8 @@
 import type { Preferences, Token } from '../types'
+import { isSentenceEnd } from './preprocess'
 export const clampWpm = (value: number) => Number.isFinite(value) ? Math.min(1500, Math.max(100, Math.round(value))) : 300
+/** Arrow-key speed change: 10 WPM (1 with fine adjustment), or 50 while Shift is held. */
+export const keyboardWpm = (wpm: number, direction: 1 | -1, shift: boolean, fine: boolean) => clampWpm(wpm + direction * (shift ? 50 : fine ? 1 : 10))
 export const msPerWord = (wpm: number) => 60000 / clampWpm(wpm)
 /** Selected WPM is the target. Ramp starts at 65% and reaches it after rampUpWords.
  * Experimental adaptive mode spends more time on long words and less on short ones. */
@@ -7,8 +10,11 @@ export function paceWpmAt(tokens: Token[], index: number, settings: Preferences)
   const target = clampWpm(settings.wpm)
   if (settings.paceMode === 'ramp') return Math.max(100, target * (.65 + .35 * Math.min(1, index / Math.max(1, settings.rampUpWords))))
   if (settings.paceMode === 'adaptive') {
-    const length = tokens[index]?.text.match(/[\p{L}\p{N}]/gu)?.length ?? 0
-    const factor = Math.min(1.2, Math.max(.75, 1 + (length - 5) * -.055))
+    const token = tokens[index]
+    const length = token?.text.match(/[\p{L}\p{N}]/gu)?.length ?? 0
+    const lengthFactor = settings.adaptiveLength ? Math.min(1.15, Math.max(.78, 1 + (length - 5) * -.045)) : 1
+    const boundaryFactor = settings.adaptiveBoundaries && token ? isSentenceEnd(token.text) ? .86 : /[,;:]["'”’)}\]]*$/u.test(token.text) ? .93 : 1 : 1
+    const factor = lengthFactor * boundaryFactor
     return Math.max(100, Math.min(1500, target * factor))
   }
   return target
@@ -19,7 +25,7 @@ export function tokenDuration(tokens: Token[], index: number, settings: Preferen
   let duration = msPerWord(paceWpmAt(tokens, index, settings))
   if (settings.punctuation) {
     if (/[,;:]\s*["'”’)}\]]*$/u.test(token.text)) duration += settings.commaPause
-    if (/[.!?]\s*["'”’)}\]]*$/u.test(token.text)) duration += settings.sentencePause
+    if (isSentenceEnd(token.text)) duration += settings.sentencePause
     if (tokens[index + 1]?.paragraphBefore) duration += settings.paragraphPause
   }
   return duration

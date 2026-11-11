@@ -112,3 +112,28 @@ it('keyboard shortcuts play and advance; typing remains untouched', async () => 
   fireEvent.keyDown(screen.getByLabelText('Reading speed'), { key: 'ArrowRight' })
   expect(screen.getByText('WORD 2')).toBeInTheDocument()
 })
+describe('rewind on pause', () => {
+  it('steps back only while paused and never below the first word', () => {
+    const states: number[] = []
+    const engine = new PlaybackEngine({ ...defaults }, state => states.push(state.index), { now: () => Date.now(), set: (fn, delay) => setTimeout(fn, delay), clear: id => clearTimeout(id) })
+    engine.load(tokenize('one two three four five six seven eight nine ten'), 6)
+    engine.play(); engine.rewind(3)
+    expect(engine.snapshot().index).toBe(6)
+    engine.pause(); engine.rewind(3)
+    expect(engine.snapshot().index).toBe(3)
+    engine.rewind(10)
+    expect(engine.snapshot().index).toBe(0)
+    engine.destroy()
+  })
+})
+
+describe('keyboard speed', () => {
+  it('changes by 10, 1 when fine, or 50 with Shift, and stays within 100-1500', async () => {
+    const { keyboardWpm } = await import('../src/lib/readingTime')
+    expect(keyboardWpm(300, 1, false, false)).toBe(310)
+    expect(keyboardWpm(300, -1, false, true)).toBe(299)
+    expect(keyboardWpm(300, 1, true, false)).toBe(350)
+    expect(keyboardWpm(120, -1, true, false)).toBe(100)
+    expect(keyboardWpm(1480, 1, true, true)).toBe(1500)
+  })
+})

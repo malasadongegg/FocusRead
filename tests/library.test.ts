@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { closeLibrary, deleteDocument, getDocument, getDraft, listDocuments, migrateLegacyLibrary, putDocument, putDraft } from '../src/lib/library'
-import { createLibraryBackup, mergeDocuments, parseLibraryBackup } from '../src/lib/libraryBackup'
+import { createLibraryBackup, mergeDocuments, parseBackupAssessments, parseBackupDraft, parseBackupMarks, parseLibraryBackup } from '../src/lib/libraryBackup'
 import { readSession, writeLocal } from '../src/lib/storage'
 import type { DocumentRecord } from '../src/types'
 
@@ -55,5 +55,15 @@ describe('library backup', () => {
   it('merges by ID and preserves the newer local document', () => {
     const imported = [{ ...first, text: 'Old backup', updatedAt: 5 }, second]
     expect(mergeDocuments([first], imported)).toEqual([first, second])
+  })
+  it('backs up marks, quiz results, and a resumable draft without changing older backups', () => {
+    const mark = { id: 'm1', documentId: 'draft', sourceHash: 'hash', index: 1, kind: 'annotation' as const, label: 'word', note: 'My note', createdAt: 2 }
+    const assessment = { id: 'a1', documentId: 'draft', passageId: 'garden', selectedWpm: 300, observedWpm: 280, readingId: 'r1', correct: 1, total: 2, completedAt: 3 }
+    const draft = { id: 'current' as const, title: 'Draft', text: 'Sensitive material', updatedAt: 4 }
+    const backup = createLibraryBackup([], [], [mark], [assessment], draft)
+    expect(parseBackupMarks(backup)).toEqual([mark])
+    expect(parseBackupAssessments(backup)).toEqual([assessment])
+    expect(parseBackupDraft(backup)).toEqual(draft)
+    expect(parseBackupMarks(createLibraryBackup([]))).toEqual([])
   })
 })

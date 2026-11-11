@@ -8,3 +8,9 @@ export function writeLocal(key: string, value: unknown) {
 }
 export const readSession = () => readLocal<Session | null>('session', null)
 export const readPreferences = (defaults: Preferences) => ({ ...defaults, ...readLocal<Partial<Preferences>>('preferences', {}) })
+
+/** Saved preferences win. Without them, the operating system's reduced-motion setting is the starting point. */
+export function readInitialPreferences(defaults: Preferences, prefersReducedMotion: boolean): Preferences {
+  const stored = readLocal<Partial<Preferences> | null>('preferences', null)
+  return { ...defaults, ...(stored ? {} : { reducedMotion: prefersReducedMotion }), ...stored }
+}
