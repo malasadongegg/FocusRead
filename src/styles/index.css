@@ -34,3 +34,4 @@
 
 .ladder-stage{min-height:200px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--reader-bg)}
 .wpm-readout{left:50%;right:auto;transform:translateX(-50%);bottom:80px;font-weight:700;font-size:14px}
+.shortcut-table{width:100%;border-collapse:collapse}.shortcut-table th,.shortcut-table td{text-align:left;padding:10px 0;border-top:1px solid var(--line);font-size:13px;vertical-align:top}.shortcut-table th{white-space:nowrap;padding-right:14px;font-weight:500}
