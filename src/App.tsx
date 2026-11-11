@@ -36,7 +36,7 @@ import { keyboardWpm } from './lib/readingTime'
 import { nextSentenceStart, previousSentenceStart } from './lib/navigation'
 import { forgetPosition, positionPercent, resumablePosition, savePosition } from './lib/positions'
 import { prepareReadingText } from './lib/preprocess'
-import { readPreferences, readSession, writeLocal } from './lib/storage'
+import { readInitialPreferences, readSession, writeLocal } from './lib/storage'
 import { clearReadings, deleteDocument, deleteMark, getDocument, getDraft, listAllMarks, listAssessments, listDocuments, listMarks, listReadings, migrateLegacyLibrary, putAssessment, putAssessments, putDocument, putDocuments, putDraft, putMark, putMarks, putReadings } from './lib/library'
 import { createLibraryBackup, mergeDocuments, parseBackupAssessments, parseBackupDraft, parseBackupMarks, parseBackupReadings, parseLibraryBackup } from './lib/libraryBackup'
 import type { AudioProfile, DocumentMark, DocumentRecord, Mode, PracticeGoal, Preferences, ReadingRecord, Session } from './types'
@@ -44,7 +44,7 @@ import type { AudioProfile, DocumentMark, DocumentRecord, Mode, PracticeGoal, Pr
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
 
 export default function App() {
-  const [settings, setSettings] = useState<Preferences>(() => readPreferences(defaults))
+  const [settings, setSettings] = useState<Preferences>(() => readInitialPreferences(defaults, matchMedia('(prefers-reduced-motion: reduce)').matches))
   const [documents, setDocuments] = useState<DocumentRecord[]>([])
   const [marks, setMarks] = useState<DocumentMark[]>([])
   const [documentId, setDocumentId] = useState<string | null>(null)
